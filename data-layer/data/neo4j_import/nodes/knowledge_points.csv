@@ -1,0 +1,6 @@
+neo4j_id,name,code,module,level,difficulty,description,core_points,mysql_id
+KP_SET_001,集合,SET,SET,1,EASY,"集合是数学中的基本概念，表示具有某种特定性质的对象的总体","集合定义、集合表示、集合运算",1
+KP_SET_002,集合运算,SET_OPERATION,SET,2,MEDIUM,"集合的基本运算包括并集、交集、差集等","并集、交集、差集、补集",2
+KP_LL_001,线性表,LINEAR_LIST,LINEAR_LIST,1,EASY,"线性表是n个数据元素的有限序列","线性表定义、特点、基本操作",3
+KP_LL_002,数组,ARRAY,LINEAR_LIST,3,EASY,"数组是一种线性数据结构，使用连续的内存空间存储相同类型的数据","内存连续、随机访问O(1)、插入删除O(n)",4
+KP_LL_003,链表,LINKED_LIST,LINEAR_LIST,3,MEDIUM,"链表是一种物理存储单元上非连续的存储结构","指针操作、动态分配、插入删除O(1)",5
