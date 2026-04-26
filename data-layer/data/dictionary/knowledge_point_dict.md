@@ -26,11 +26,49 @@
 
 | neo4j_id | name | code | level | difficulty | description | core_points | parent_id | relations |
 |----------|------|------|-------|------------|-------------|-------------|-----------|-----------|
-| KP_SET_001 | 集合 | SET | 1 | EASY | 集合的基本概念 | 集合定义、性质 | NULL | - |
-| | | | | | | | | |
+| KP_SET_001 | 集合 | SET | 1 | EASY | 由确定元素构成的整体，是离散数学与数据结构中的基础抽象 | 定义域、元素、隶属关系、去重语义 | NULL | - |
+| KP_SET_002 | 集合表示法 | SET_REPRESENTATION | 3 | EASY | 常见表示方式包括列举法和描述法 | 列举法、描述法、等价表达 | KP_SET_001 | KP_SET_003 (EXTENSION, 4) |
+| KP_SET_003 | 元素隶属关系 | ELEMENT_MEMBERSHIP | 3 | EASY | 用属于与不属于描述元素和集合关系 | 符号∈/∉、判定条件 | KP_SET_001 | KP_SET_020 (PREREQUISITE, 3) |
+| KP_SET_004 | 集合相等判定 | SET_EQUALITY | 3 | MEDIUM | 两集合元素完全相同则相等，与顺序和重复无关 | 双向包含、与数组相等区别 | KP_SET_001 | KP_SET_009 (COMPARISON, 3) |
+| KP_SET_005 | 空集与全集 | EMPTY_AND_UNIVERSAL_SET | 3 | EASY | 空集不含任何元素，全集表示讨论范围内全部元素 | 空集符号、全集上下文依赖 | KP_SET_001 | KP_SET_025 (PREREQUISITE, 4) |
+| KP_SET_006 | 子集与真子集 | SUBSET_AND_PROPER_SUBSET | 3 | MEDIUM | 子集关系刻画集合层级，真子集要求不相等 | 包含关系、反例判断 | KP_SET_001 | KP_SET_007 (EXTENSION, 4) |
+| KP_SET_007 | 幂集 | POWER_SET | 3 | MEDIUM | 幂集由原集合全部子集组成，规模呈指数增长 | 幂集定义、元素个数2^n | KP_SET_006 | KP_SET_033 (PREREQUISITE, 4) |
+| KP_SET_008 | 集合基本性质总览 | SET_PROPERTIES_OVERVIEW | 2 | MEDIUM | 集合具备无序性、互异性、确定性等核心性质 | 抽象语义与实现影响 | KP_SET_001 | KP_SET_009 (PREREQUISITE, 3), KP_SET_010 (PREREQUISITE, 3), KP_SET_011 (PREREQUISITE, 3) |
+| KP_SET_009 | 无序性 | SET_UNORDEREDNESS | 3 | EASY | 集合不关心元素先后顺序 | 与线性结构对比、判等影响 | KP_SET_008 | KP_LL_001 (COMPARISON, 4) |
+| KP_SET_010 | 互异性 | SET_UNIQUENESS | 3 | EASY | 集合中同一元素只保留一次 | 去重规则、重复处理 | KP_SET_008 | KP_SET_030 (PREREQUISITE, 4) |
+| KP_SET_011 | 确定性 | SET_WELL_DEFINEDNESS | 3 | MEDIUM | 任一对象能明确判断是否属于集合 | 判定规则、边界定义 | KP_SET_008 | KP_SET_003 (COMPARISON, 3) |
+| KP_SET_012 | 集合存储结构总览 | SET_STORAGE_OVERVIEW | 2 | MEDIUM | 集合可用顺序、链式、哈希、位图等结构实现 | 空间效率、查询性能、适用场景 | KP_SET_001 | KP_SET_013 (PREREQUISITE, 4), KP_SET_014 (PREREQUISITE, 4), KP_SET_015 (PREREQUISITE, 4), KP_SET_016 (PREREQUISITE, 4) |
+| KP_SET_013 | 顺序存储实现集合 | SET_ARRAY_STORAGE | 3 | EASY | 用数组或动态数组维护集合，常用于小规模场景 | 线性查找、插删搬移、去重策略 | KP_SET_012 | KP_LL_002 (PREREQUISITE, 4), KP_SET_018 (PREREQUISITE, 3) |
+| KP_SET_014 | 链式存储实现集合 | SET_LINKED_STORAGE | 3 | MEDIUM | 用链表维护集合元素，插删灵活但查询较慢 | 指针维护、遍历判重 | KP_SET_012 | KP_LL_003 (PREREQUISITE, 4), KP_SET_019 (PREREQUISITE, 3) |
+| KP_SET_015 | 哈希存储实现集合 | SET_HASH_STORAGE | 3 | HARD | 基于哈希表可实现近似O(1)成员查询 | 哈希函数、冲突处理、负载因子 | KP_SET_012 | KP_SEARCH_008 (PREREQUISITE, 5), KP_SET_020 (PREREQUISITE, 4) |
+| KP_SET_016 | 位图实现集合 | SET_BITMAP_STORAGE | 3 | MEDIUM | 用位向量表示整数域集合，节省空间且操作快 | 位运算、固定值域、压缩存储 | KP_SET_012 | KP_SET_021 (EXTENSION, 3), KP_SET_022 (EXTENSION, 3) |
+| KP_SET_017 | 集合基本操作总览 | SET_OPERATIONS_OVERVIEW | 2 | EASY | 集合操作包括增删查与代数运算，是后续算法基础 | 成员操作、集合运算、复杂度 | KP_SET_001 | KP_SET_018 (PREREQUISITE, 4), KP_SET_019 (PREREQUISITE, 4), KP_SET_020 (PREREQUISITE, 4), KP_SET_021 (PREREQUISITE, 4), KP_SET_022 (PREREQUISITE, 4), KP_SET_023 (PREREQUISITE, 4) |
+| KP_SET_018 | 插入元素 | SET_INSERT | 3 | EASY | 向集合加入元素时需维护互异性约束 | 先判重后插入、幂等更新 | KP_SET_017 | KP_SET_010 (PREREQUISITE, 4) |
+| KP_SET_019 | 删除元素 | SET_DELETE | 3 | EASY | 从集合中移除指定元素并维护结构一致性 | 删除不存在元素处理、稳定性 | KP_SET_017 | KP_SET_037 (EXTENSION, 2) |
+| KP_SET_020 | 成员判定 | SET_MEMBERSHIP_QUERY | 3 | EASY | 判断元素是否属于集合，是最基础查询能力 | contains语义、平均/最坏复杂度 | KP_SET_017 | KP_SEARCH_001 (COMPARISON, 4) |
+| KP_SET_021 | 并集 | SET_UNION | 3 | EASY | 并集包含两个集合所有元素且去重 | 合并策略、去重语义 | KP_SET_017 | KP_SET_010 (PREREQUISITE, 4), KP_SET_028 (EXTENSION, 3) |
+| KP_SET_022 | 交集 | SET_INTERSECTION | 3 | EASY | 交集保留两个集合共同元素 | 双集合匹配、过滤思想 | KP_SET_017 | KP_SET_020 (PREREQUISITE, 3), KP_SET_028 (EXTENSION, 3) |
+| KP_SET_023 | 差集 | SET_DIFFERENCE | 3 | MEDIUM | 差集保留在A中但不在B中的元素 | 方向性、互补关系 | KP_SET_017 | KP_SET_025 (EXTENSION, 3) |
+| KP_SET_024 | 对称差 | SET_SYMMETRIC_DIFFERENCE | 3 | MEDIUM | 对称差保留仅属于其中一个集合的元素 | 与并交差关系变换 | KP_SET_017 | KP_SET_021 (PREREQUISITE, 3), KP_SET_022 (PREREQUISITE, 3) |
+| KP_SET_025 | 补集 | SET_COMPLEMENT | 3 | MEDIUM | 补集依赖全集定义，表示全集中不属于目标集合的部分 | 上下文全集、德摩根律 | KP_SET_017 | KP_SET_005 (PREREQUISITE, 5) |
+| KP_SET_026 | 笛卡尔积 | SET_CARTESIAN_PRODUCT | 3 | MEDIUM | 笛卡尔积生成有序对集合，连接集合与关系概念 | 有序对、规模乘法增长 | KP_SET_017 | KP_GRAPH_001 (EXTENSION, 2) |
+| KP_SET_027 | 集合运算律 | SET_ALGEBRA_LAWS | 3 | HARD | 交换律、结合律、分配律、德摩根律支撑推导与化简 | 公式变换、等价证明 | KP_SET_017 | KP_SET_021 (PREREQUISITE, 3), KP_SET_022 (PREREQUISITE, 3), KP_SET_025 (PREREQUISITE, 3) |
+| KP_SET_028 | 集合操作复杂度分析 | SET_OPERATION_COMPLEXITY | 3 | MEDIUM | 同一操作在不同存储结构下复杂度差异明显 | 时间复杂度、空间复杂度、选型权衡 | KP_SET_017 | KP_SET_012 (PREREQUISITE, 4) |
+| KP_SET_029 | 集合应用与选型 | SET_APPLICATION_AND_SELECTION | 2 | MEDIUM | 根据数据规模、值域和操作频率选择集合实现 | 小规模/大规模、静态/动态、高频查询 | KP_SET_001 | KP_SET_028 (PREREQUISITE, 4), KP_SET_030 (PREREQUISITE, 3), KP_SET_031 (PREREQUISITE, 3), KP_SET_032 (PREREQUISITE, 3) |
+| KP_SET_030 | 典型问题-数据去重 | SET_CASE_DEDUPLICATION | 3 | EASY | 使用集合快速去除重复元素，是最常见业务场景 | 去重流程、稳定输出策略 | KP_SET_029 | KP_SET_010 (PREREQUISITE, 4), KP_SET_018 (PREREQUISITE, 3) |
+| KP_SET_031 | 典型问题-集合合并 | SET_CASE_MERGE | 3 | EASY | 合并多个集合并去重，常见于标签、权限、推荐等场景 | 多源合并、冲突规约 | KP_SET_029 | KP_SET_021 (PREREQUISITE, 4) |
+| KP_SET_032 | 典型问题-集合查询过滤 | SET_CASE_FILTERING | 3 | MEDIUM | 借助集合进行黑白名单过滤和快速包含判断 | 白名单、黑名单、预过滤 | KP_SET_029 | KP_SET_020 (PREREQUISITE, 4) |
+| KP_SET_033 | 典型问题-子集枚举 | SET_CASE_SUBSET_ENUMERATION | 3 | HARD | 子集枚举常用于回溯和状态压缩问题 | 位掩码枚举、剪枝策略 | KP_SET_029 | KP_SET_007 (PREREQUISITE, 4), KP_SET_016 (PREREQUISITE, 3) |
+| KP_SET_034 | 典型问题-幂集生成 | SET_CASE_POWER_SET_GENERATION | 3 | HARD | 通过回溯或位运算生成幂集，关注复杂度爆炸 | 递归构造、位运算技巧 | KP_SET_029 | KP_SET_033 (PREREQUISITE, 4) |
+| KP_SET_035 | 多重集合与集合对比 | MULTISET_VS_SET | 3 | MEDIUM | 多重集合允许重复元素，和集合语义不同 | 计数模型、应用场景差异 | KP_SET_001 | KP_SET_010 (COMPARISON, 4) |
+| KP_SET_036 | 集合与线性表对比 | SET_VS_LINEAR_LIST | 3 | MEDIUM | 集合强调成员语义，线性表强调次序与位置 | 抽象差异、操作差异 | KP_SET_001 | KP_LL_001 (COMPARISON, 5) |
+| KP_SET_037 | 常见边界与错误处理 | SET_EDGE_CASES | 3 | MEDIUM | 处理空集、重复输入、非法值域等边界是工程落地关键 | 空输入、防重复、异常约定 | KP_SET_017 | KP_SET_038 (PREREQUISITE, 3), KP_SET_039 (PREREQUISITE, 3) |
+| KP_SET_038 | 空集相关边界处理 | SET_EMPTY_CASE_HANDLING | 3 | EASY | 空集参与运算时结果有固定规律，应在实现中显式覆盖 | 空集并交差规则 | KP_SET_037 | KP_SET_005 (PREREQUISITE, 4) |
+| KP_SET_039 | 重复输入处理策略 | SET_DUPLICATE_INPUT_POLICY | 3 | EASY | 面对重复输入时应保持集合语义一致并定义输出约定 | 幂等行为、日志记录策略 | KP_SET_037 | KP_SET_010 (PREREQUISITE, 4) |
+| KP_SET_040 | 集合实践设计清单 | SET_IMPLEMENTATION_CHECKLIST | 2 | MEDIUM | 实现集合前确认值域、操作比例、并发需求和持久化方案 | 设计前检查项、性能目标、测试要点 | KP_SET_029 | KP_SET_012 (PREREQUISITE, 3), KP_SET_028 (PREREQUISITE, 3), KP_SET_037 (PREREQUISITE, 3) |
 
-**负责人**: XXX  
-**最后更新**: 2024-XX-XX
+**负责人**: 张佳宇
+**最后更新**: 2026-04-26
 
 ---
 
@@ -43,7 +81,7 @@
 | KP_LL_003 | 链表 | LINKED_LIST | 3 | MEDIUM | 链表的实现和特点 | 指针操作、动态分配 | NULL | KP_LL_002 (EXTENSION, 4) |
 | | | | | | | | | |
 
-**负责人**: XXX  
+**负责人**: XXX
 **最后更新**: 2024-XX-XX
 
 ---
@@ -56,7 +94,7 @@
 | KP_TREE_002 | 二叉树 | BINARY_TREE | 2 | MEDIUM | 二叉树的定义和性质 | 二叉树特性、遍历 | KP_TREE_001 | - |
 | | | | | | | | | |
 
-**负责人**: XXX  
+**负责人**: XXX
 **最后更新**: 2024-XX-XX
 
 ---
@@ -68,7 +106,7 @@
 | KP_GRAPH_001 | 图 | GRAPH | 1 | MEDIUM | 图的基本概念 | 图的定义、术语 | NULL | - |
 | | | | | | | | | |
 
-**负责人**: XXX  
+**负责人**: XXX
 **最后更新**: 2024-XX-XX
 
 ---
@@ -160,7 +198,7 @@
 | KP_SEARCH_081 | 树表查找-迭代实现 | TREE_ITERATIVE_IMPL | 3 | MEDIUM | 通过循环和父指针实现树查找 | 控制栈开销 | KP_SEARCH_013 | KP_SEARCH_080 (COMPARISON, 2) |
 | KP_SEARCH_082 | 树表查找-业务案例区间检索 | TREE_CASE_RANGE_QUERY | 3 | EASY | 在动态有序数据中做区间查询 | 价格区间、时间区间检索 | KP_SEARCH_011 | KP_SEARCH_014 (PREREQUISITE, 2) |
 
-**负责人**: 马之涵  
+**负责人**: 马之涵
 **最后更新**: 2026-04-26
 
 ---
@@ -172,7 +210,7 @@
 | KP_SORT_001 | 排序 | SORT | 1 | MEDIUM | 排序的基本概念 | 排序算法分类 | NULL | - |
 | | | | | | | | | |
 
-**负责人**: XXX  
+**负责人**: XXX
 **最后更新**: 2024-XX-XX
 
 ---
@@ -217,4 +255,5 @@ KP_LL_002 (数组) -[PREREQUISITE, strength:5]-> KP_LL_003 (链表)
 | 2026-04-26 | mazhi | 将查找模块按知识图谱建模细化到原理、实现、性能、变体和应用选型层级 |
 | 2026-04-26 | mazhi | 为查找模块补充零基础可读解释与实例，强化“看得懂、会选型、能落地” |
 | 2026-04-26 | mazhi | 将查找模块扩展为超细粒度节点，补齐顺序/二分/哈希/树表各20条以上并增强互相关联 |
+| 2026-04-26 | thebreeze | 新增集合模块知识图谱梳理，覆盖定义、性质、存储、基本操作与典型问题，并补充对应MySQL录入脚本 |
 | | | |
