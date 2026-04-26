@@ -28,10 +28,10 @@ done
 echo "Neo4j已就绪！"
 echo ""
 
-# 检查CSV文件是否存在
-if [ ! -f "$IMPORT_DIR/nodes/knowledge_points.csv" ]; then
-    echo "错误: 未找到知识点CSV文件"
-    echo "请将CSV文件放置在 ../data/neo4j_import/nodes/ 目录"
+# 检查Cypher文件是否存在
+if [ ! -f "$IMPORT_DIR/knowledge_points.cypher" ]; then
+    echo "错误: 未找到知识点Cypher文件"
+    echo "请将Cypher文件放置在 ../data/neo4j_import/ 目录"
     exit 1
 fi
 
@@ -41,53 +41,11 @@ cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" < "$SCRIPTS_D
 echo "✓ Schema创建完成"
 echo ""
 
-# 2. 导入节点数据
-echo "步骤2: 导入知识点节点..."
-cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" <<EOF
-LOAD CSV WITH HEADERS FROM 'file:///nodes/knowledge_points.csv' AS row
-CREATE (kp:KnowledgePoint {
-  neo4j_id: row.neo4j_id,
-  name: row.name,
-  code: row.code,
-  module: row.module,
-  level: toInteger(row.level),
-  difficulty: row.difficulty,
-  description: row.description,
-  core_points: row.core_points,
-  mysql_id: toInteger(row.mysql_id)
-});
-EOF
-echo "✓ 节点导入完成"
+# 2. 导入知识点数据
+echo "步骤2: 导入知识点数据..."
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" < "$IMPORT_DIR/knowledge_points.cypher"
+echo "✓ 知识点数据导入完成"
 echo ""
-
-# 3. 导入层级关系（如果文件存在）
-if [ -f "$IMPORT_DIR/relationships/parent_of.csv" ]; then
-    echo "步骤3: 导入层级关系..."
-    cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" <<EOF
-LOAD CSV WITH HEADERS FROM 'file:///relationships/parent_of.csv' AS row
-MATCH (parent:KnowledgePoint {neo4j_id: row.:START_ID}),
-      (child:KnowledgePoint {neo4j_id: row.:END_ID})
-CREATE (parent)-[:PARENT_OF {order: toInteger(row.order)}]->(child);
-EOF
-    echo "✓ 层级关系导入完成"
-    echo ""
-fi
-
-# 4. 导入关联关系（如果文件存在）
-if [ -f "$IMPORT_DIR/relationships/related_to.csv" ]; then
-    echo "步骤4: 导入关联关系..."
-    cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" <<EOF
-LOAD CSV WITH HEADERS FROM 'file:///relationships/related_to.csv' AS row
-MATCH (start:KnowledgePoint {neo4j_id: row.:START_ID}),
-      (end:KnowledgePoint {neo4j_id: row.:END_ID})
-CREATE (start)-[:RELATED_TO {
-  type: row.type,
-  strength: toInteger(row.strength)
-}]->(end);
-EOF
-    echo "✓ 关联关系导入完成"
-    echo ""
-fi
 
 # 5. 验证导入结果
 echo "========================================="

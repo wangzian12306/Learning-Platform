@@ -18,7 +18,7 @@
 | difficulty | String | 是 | 难度等级 | EASY/MEDIUM/HARD |
 | description | String | 否 | 知识点描述 | 数组是... |
 | core_points | String | 否 | 核心考点 | 内存连续、随机访问... |
-| mysql_id | Long | 是 | 对应的MySQL表knowledge_point的id | 1 |
+| mysql_id | Long | 否 | 对应的MySQL记录id（可选，用于关联） | 1 |
 
 **示例**:
 ```cypher
@@ -30,8 +30,7 @@ CREATE (kp:KnowledgePoint {
   level: 3,
   difficulty: 'EASY',
   description: '数组是一种线性数据结构，使用连续的内存空间存储相同类型的数据',
-  core_points: '内存连续、随机访问O(1)、插入删除O(n)',
-  mysql_id: 1
+  core_points: '内存连续、随机访问O(1)、插入删除O(n)'
 })
 ```
 
