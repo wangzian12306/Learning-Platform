@@ -43,3 +43,5 @@ spring-boot-*.log
 # Database
 *.db
 *.sqlite
+
+.history/
