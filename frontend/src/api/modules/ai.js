@@ -12,15 +12,15 @@ export function sendChatMessage(data) {
 
 /** AI 代码分析与纠错 */
 export function analyzeCode(data) {
-  return http.post('/ai/analyze', data)
+  return http.post('/ai/code/analysis', data)
 }
 
 /** AI 代码生成 */
 export function generateCode(data) {
-  return http.post('/ai/generate', data)
+  return http.post('/ai/code/generation', data)
 }
 
 /** 获取历史对话记录 */
-export function getChatHistory(sessionId) {
-  return http.get(`/ai/chat/${sessionId}/history`)
+export function getChatHistory(sessionId, userId, limit = 50) {
+  return http.get(`/ai/sessions/${sessionId}`, { params: { user_id: userId, limit } })
 }

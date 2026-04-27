@@ -1,80 +1,91 @@
 <template>
   <div class="learning-path-layout">
     <!-- ========== 左侧：目录树 ========== -->
-    <aside class="tree-panel">
-      <div class="panel-header">
-        <h3 class="panel-title">目录</h3>
-        <el-popover placement="bottom" :width="220" trigger="hover">
-          <template #reference>
-            <el-button :icon="InfoFilled" circle size="small" />
-          </template>
-          <div class="legend-popup">
-            <div class="legend-item"><span class="dot dot-not-started"></span> 未学习</div>
-            <div class="legend-item"><span class="dot dot-in-progress"></span> 学习中</div>
-            <div class="legend-item"><span class="dot dot-completed"></span> 已完成</div>
-            <div class="legend-item"><span class="prereq-badge">⚠</span> 有前置依赖</div>
+    <aside class="tree-panel" :class="{ collapsed: treeCollapsed }">
+      <template v-if="!treeCollapsed">
+        <div class="panel-header">
+          <h3 class="panel-title">目录</h3>
+          <div class="panel-actions">
+            <el-popover placement="bottom" :width="220" trigger="hover">
+              <template #reference>
+                <el-button :icon="InfoFilled" circle size="small" />
+              </template>
+              <div class="legend-popup">
+                <div class="legend-item"><span class="dot dot-not-started"></span> 未学习</div>
+                <div class="legend-item"><span class="dot dot-in-progress"></span> 学习中</div>
+                <div class="legend-item"><span class="dot dot-completed"></span> 已完成</div>
+                <div class="legend-item"><span class="prereq-badge">⚠</span> 有前置依赖</div>
+              </div>
+            </el-popover>
+            <el-button :icon="DArrowLeft" text size="small" title="收起目录" @click="treeCollapsed = true" />
           </div>
-        </el-popover>
-      </div>
+        </div>
 
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索知识点..."
-        :prefix-icon="Search"
-        clearable
-        size="small"
-        class="search-input"
-        @input="handleSearch"
-      />
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索知识点..."
+          :prefix-icon="Search"
+          clearable
+          size="small"
+          class="search-input"
+          @input="handleSearch"
+        />
 
-      <div class="tree-wrapper">
-        <el-tree
-          ref="treeRef"
-          :data="treeData"
-          :props="treeProps"
-          node-key="id"
-          highlight-current
-          :expand-on-click-node="true"
-          :filter-node-method="filterNode"
-          :default-expanded-keys="defaultExpandedKeys"
-          accordion
-          @node-click="handleNodeClick"
-        >
-          <template #default="{ data }">
-            <div class="tree-node-content">
-              <span
-                class="status-dot"
-                :class="'status-' + getStatus(data)"
-                :title="statusLabel[getStatus(data)]"
-              ></span>
-              <span class="node-label">{{ data.name }}</span>
-              <el-tag
-                :type="difficultyTagType(data.difficulty)"
-                size="small"
-                class="difficulty-tag"
-              >
-                {{ difficultyLabel[data.difficulty] || data.difficulty }}
-              </el-tag>
-              <el-tooltip
-                v-if="hasPrerequisites(data)"
-                placement="right"
-                :show-after="300"
-              >
-                <template #content>
-                  <div class="prereq-tooltip">
-                    <strong>推荐学习顺序：</strong>
-                    <ul>
-                      <li v-for="pre in getPrerequisiteNames(data)" :key="pre">
-                        需先学习「{{ pre }}」
-                      </li>
-                    </ul>
-                  </div>
-                </template>
-                <span class="prereq-icon" title="有前置依赖">⚠</span>
-              </el-tooltip>
-            </div>
-          </template>
-        </el-tree>
+        <div class="tree-wrapper">
+          <el-tree
+            ref="treeRef"
+            :data="treeData"
+            :props="treeProps"
+            node-key="id"
+            highlight-current
+            :expand-on-click-node="true"
+            :filter-node-method="filterNode"
+            :default-expanded-keys="defaultExpandedKeys"
+            accordion
+            @node-click="handleNodeClick"
+          >
+            <template #default="{ data }">
+              <div class="tree-node-content">
+                <span
+                  class="status-dot"
+                  :class="'status-' + getStatus(data)"
+                  :title="statusLabel[getStatus(data)]"
+                ></span>
+                <span class="node-label">{{ data.name }}</span>
+                <el-tag
+                  :type="difficultyTagType(data.difficulty)"
+                  size="small"
+                  class="difficulty-tag"
+                >
+                  {{ difficultyLabel[data.difficulty] || data.difficulty }}
+                </el-tag>
+                <el-tooltip
+                  v-if="hasPrerequisites(data)"
+                  placement="right"
+                  :show-after="300"
+                >
+                  <template #content>
+                    <div class="prereq-tooltip">
+                      <strong>推荐学习顺序：</strong>
+                      <ul>
+                        <li v-for="pre in getPrerequisiteNames(data)" :key="pre">
+                          需先学习「{{ pre }}」
+                        </li>
+                      </ul>
+                    </div>
+                  </template>
+                  <span class="prereq-icon" title="有前置依赖">⚠</span>
+                </el-tooltip>
+              </div>
+            </template>
+          </el-tree>
+        </div>
+      </template>
+
+      <div v-else class="collapsed-strip">
+        <el-tooltip content="展开目录" placement="right">
+          <el-button :icon="DArrowRight" text @click="treeCollapsed = false" />
+        </el-tooltip>
       </div>
     </aside>
 
@@ -86,23 +97,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Search, InfoFilled } from '@element-plus/icons-vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Search, InfoFilled, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLearningStore } from '@/stores/learning'
 
 const router = useRouter()
-const route = useRoute()
 const knowledgeStore = useKnowledgeStore()
 const learningStore = useLearningStore()
 
 const treeRef = ref(null)
 const searchKeyword = ref('')
+const treeCollapsed = ref(false)
 
 // ================================================================
 //  静态 Mock 数据（后续替换为 getKnowledgeTree() API 调用）
-//  数据结构与后端约定见同目录下的 api-contract.json
+//  数据结构与后端约定见同目录下的 data-requirements.json
 // ================================================================
 const mockTreeData = [
   {
@@ -423,7 +434,7 @@ const mockTreeData = [
     prerequisites: [],
     children: [
       {
-        id: 21,
+        id: 201,
         neo4jId: 'KP_GRAPH_002',
         name: '图的存储结构',
         code: 'GRAPH_STORAGE',
@@ -457,7 +468,7 @@ const mockTreeData = [
         ],
       },
       {
-        id: 22,
+        id: 202,
         neo4jId: 'KP_GRAPH_005',
         name: '图的遍历',
         code: 'GRAPH_TRAVERSAL',
@@ -491,7 +502,7 @@ const mockTreeData = [
         ],
       },
       {
-        id: 23,
+        id: 203,
         neo4jId: 'KP_GRAPH_008',
         name: '最小生成树',
         code: 'MST',
@@ -525,7 +536,7 @@ const mockTreeData = [
         ],
       },
       {
-        id: 24,
+        id: 204,
         neo4jId: 'KP_GRAPH_011',
         name: '最短路径',
         code: 'SHORTEST_PATH',
@@ -725,6 +736,18 @@ const treeData = ref(mockTreeData)
 const treeProps = { children: 'children', label: 'name' }
 const defaultExpandedKeys = []
 
+const neo4jIdIndex = computed(() => {
+  const map = new Map()
+  function walk(nodes) {
+    for (const n of nodes) {
+      map.set(n.neo4jId, n)
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(treeData.value)
+  return map
+})
+
 // ================================================================
 //  学习状态
 // ================================================================
@@ -734,7 +757,8 @@ function getStatus(data) {
   return learningStore.getProgress(data.id)
 }
 
-;(function mockProgress() {
+// 静态演示进度数据（仅 dev 环境下当 progressMap 为空时注入，避免覆盖真实数据）
+if (import.meta.env.DEV && Object.keys(learningStore.progressMap).length === 0) {
   learningStore.setProgress(1, 'completed')
   learningStore.setProgress(2, 'completed')
   learningStore.setProgress(21, 'completed')
@@ -744,7 +768,7 @@ function getStatus(data) {
   learningStore.setProgress(51, 'in_progress')
   learningStore.setProgress(10, 'completed')
   learningStore.setProgress(11, 'in_progress')
-})()
+}
 
 // ================================================================
 //  难度标签
@@ -764,37 +788,27 @@ function hasPrerequisites(data) {
 
 function getPrerequisiteNames(data) {
   return (data.prerequisites || []).map((neo4jId) => {
-    const found = findNodeByNeo4jId(treeData.value, neo4jId)
-    return found ? found.name : neo4jId
+    const node = neo4jIdIndex.value.get(neo4jId)
+    return node ? node.name : neo4jId
   })
-}
-
-function findNodeByNeo4jId(nodes, neo4jId) {
-  for (const node of nodes) {
-    if (node.neo4jId === neo4jId) return node
-    if (node.children && node.children.length) {
-      const found = findNodeByNeo4jId(node.children, neo4jId)
-      if (found) return found
-    }
-  }
-  return null
 }
 
 // ================================================================
 //  节点点击 → 右侧展示详情
 // ================================================================
 function handleNodeClick(data) {
+  const moduleKey = data.module.toLowerCase()
   knowledgeStore.setCurrentNode({
     id: data.id,
     name: data.name,
-    module: data.module,
+    module: moduleKey,
     difficulty: data.difficulty,
   })
-  knowledgeStore.setCurrentModule(data.module)
+  knowledgeStore.setCurrentModule(moduleKey)
 
   router.push({
     name: 'KnowledgeDetail',
-    params: { module: data.module.toLowerCase(), id: data.id },
+    params: { module: moduleKey, id: data.id },
   })
 }
 
@@ -832,6 +846,12 @@ function filterNode(value, data) {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  transition: width 0.25s ease;
+}
+
+.tree-panel.collapsed {
+  width: 44px;
+  min-width: 44px;
 }
 
 .panel-header {
@@ -839,6 +859,12 @@ function filterNode(value, data) {
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 0;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .panel-title {
@@ -856,6 +882,13 @@ function filterNode(value, data) {
   flex: 1;
   overflow-y: auto;
   padding: 8px 8px 8px 4px;
+}
+
+.collapsed-strip {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
 }
 
 /* ========== 右侧详情面板 ========== */

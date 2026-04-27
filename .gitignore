@@ -44,4 +44,7 @@ spring-boot-*.log
 *.db
 *.sqlite
 
+# AIchat local secret config
+src/python/AIchat/config/apikeys.local.json
+
 .history/
