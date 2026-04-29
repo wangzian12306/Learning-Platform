@@ -43,3 +43,6 @@ spring-boot-*.log
 # Database
 *.db
 *.sqlite
+
+# Playwright test artifacts
+.playwright-mcp/
