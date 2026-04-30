@@ -15,6 +15,11 @@ export function getKnowledgeDetail(id) {
   return http.get(`/knowledge/${id}`)
 }
 
+/** 获取知识点的内容分段（操作原理、复杂度分析等） */
+export function getKnowledgeContents(knowledgeId) {
+  return http.get(`/knowledge/${knowledgeId}/contents`)
+}
+
 /** 获取知识点的代码示例列表 */
 export function getCodeExamples(knowledgeId) {
   return http.get(`/knowledge/${knowledgeId}/codes`)

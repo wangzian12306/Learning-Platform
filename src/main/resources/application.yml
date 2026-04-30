@@ -1,4 +1,5 @@
 server:
+  address: "::1"
   port: 8080
   servlet:
     context-path: /api
@@ -9,15 +10,15 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/learning_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:13306/learning_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: root
+    password: root123
 
   neo4j:
-    uri: bolt://localhost:7687
+    uri: bolt://localhost:17687
     authentication:
       username: neo4j
-      password: neo4j
+      password: neo4j123
 
   servlet:
     multipart:

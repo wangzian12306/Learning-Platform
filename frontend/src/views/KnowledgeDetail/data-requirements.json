@@ -1,0 +1,183 @@
+{
+  "_文档说明": "知识点详情页 — 前端需要其他人提供的数据与接口（供后端负责人、数据层负责人参考）",
+  "_维护人": "知识点详情页负责人",
+  "_最后更新": "2026-04-30",
+
+  "依赖方清单": [
+    {
+      "依赖方": "数据层负责人",
+      "依赖内容": [
+        "knowledge_content 表数据",
+        "code_example 表数据"
+      ],
+      "优先级": "高"
+    },
+    {
+      "依赖方": "后端负责人",
+      "依赖内容": [
+        "知识点内容 API（已实现）",
+        "代码示例 API（已实现）"
+      ],
+      "优先级": "高"
+    },
+    {
+      "依赖方": "学习目录功能负责人",
+      "依赖内容": [
+        "LearningPath 点击节点跳转时传递正确的 route.params.module 和 route.params.id"
+      ],
+      "优先级": "高"
+    }
+  ],
+
+  "数据需求": [
+    {
+      "编号": "KD-DATA-01",
+      "需求方": "数据层负责人",
+      "标题": "MySQL knowledge_content 表种子数据",
+      "说明": "知识点详情页按模板（基本定义 → 核心考点 → 操作原理 → 代码实现 → 复杂度）渲染。其中操作原理、复杂度分析等结构化内容来自本表。",
+      "目标表": "knowledge_content",
+      "字段清单": {
+        "id": "自增主键",
+        "knowledge_point_id": "关联 knowledge_point.id",
+        "content_type": "内容类型：DEFINITION（定义）、OPERATION（操作原理）、COMPLEXITY（复杂度分析）、DIAGRAM（图示）",
+        "title": "内容标题，如 '并集操作原理'、'单链表插入步骤'",
+        "content": "正文内容（支持 Markdown）",
+        "sort_order": "排序编号，同类型下按此字段升序显示"
+      },
+      "数据量估算": "约 150 条（50 知识点 × 平均 3 种内容类型）",
+      "参考示例": [
+        {
+          "knowledge_point_id": 21,
+          "content_type": "OPERATION",
+          "title": "并集操作",
+          "content": "并集（Union）：将两个集合中的所有元素合并，去除重复元素后得到一个新集合。\n\n**步骤**：\n1. 遍历第一个集合的所有元素\n2. 将第二个集合的元素逐一加入，跳过已存在的元素",
+          "sort_order": 1
+        },
+        {
+          "knowledge_point_id": 51,
+          "content_type": "COMPLEXITY",
+          "title": "单链表复杂度分析",
+          "content": "| 操作 | 时间复杂度 |\n|------|--------|\n| 按值查找 | O(n) |\n| 头插法 | O(1) |\n| 按位置插入 | O(n) |\n| 删除节点 | O(n) |",
+          "sort_order": 1
+        }
+      ],
+      "优先级说明": "最高 — 详情页的核心内容环节。"
+    },
+
+    {
+      "编号": "KD-DATA-02",
+      "需求方": "数据层负责人",
+      "标题": "MySQL code_example 表种子数据",
+      "说明": "每个知识点至少提供 1 个 C++ 代码示例（含注释），部分重要知识点（如排序、查找、树遍历）提供 2-3 个变体。",
+      "目标表": "code_example",
+      "字段清单": {
+        "id": "自增主键",
+        "knowledge_point_id": "关联 knowledge_point.id",
+        "title": "代码标题，如 '单链表反转（迭代法）'",
+        "description": "代码功能描述与使用场景",
+        "code": "C++ 源代码",
+        "language": "编程语言（默认 C++）",
+        "sort_order": "排序编号"
+      },
+      "数据量估算": "约 70 条（50 知识点 × 平均 1.4 个示例）",
+      "参考示例": [
+        {
+          "knowledge_point_id": 51,
+          "title": "单链表反转（迭代法）",
+          "description": "三指针迭代反转单链表，时间 O(n)，空间 O(1)",
+          "code": "ListNode* reverseList(ListNode* head) {\n    ListNode *prev = nullptr, *curr = head;\n    while (curr) {\n        ListNode* next = curr->next;\n        curr->next = prev;\n        prev = curr;\n        curr = next;\n    }\n    return prev;\n}",
+          "language": "C++",
+          "sort_order": 1
+        }
+      ],
+      "优先级说明": "高 — 代码实现是详情页模板的核心章节。"
+    },
+
+    {
+      "编号": "KD-DATA-03",
+      "需求方": "数据层负责人",
+      "标题": "MySQL knowledge_point 表 required 字段检查",
+      "说明": "知识点详情页从 GET /api/knowledge/{id} 获取 knowledge_point 行。以下字段为页面渲染所必需，请确保种子数据已填充：",
+      "必需字段": [
+        "name",
+        "description",
+        "core_points",
+        "difficulty",
+        "module",
+        "level"
+      ],
+      "当前状态": "接口已实现，KnowledgePoint 完整行返回。若字段为空则章节显示 '暂无内容'。"
+    }
+  ],
+
+  "接口需求": [
+    {
+      "编号": "KD-API-01",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/knowledge/{id}",
+      "说明": "获取单个知识点的基本信息。",
+      "路径参数": { "id": "知识点 MySQL ID" },
+      "实现位置": "KnowledgePointController.getById()",
+      "优先级": "✅ 已完成"
+    },
+    {
+      "编号": "KD-API-02",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/knowledge/{knowledgeId}/contents",
+      "说明": "获取知识点关联的内容分段（定义、操作原理、复杂度分析等），按 content_type 分组、按 sort_order 排序。",
+      "数据来源": "MySQL knowledge_content 表",
+      "路径参数": { "knowledgeId": "知识点 MySQL ID" },
+      "实现位置": "KnowledgePointController.getContents()",
+      "优先级": "✅ 已完成"
+    },
+    {
+      "编号": "KD-API-03",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/knowledge/{knowledgeId}/codes",
+      "说明": "获取知识点关联的 C++ 代码示例列表，按 sort_order 排序。",
+      "数据来源": "MySQL code_example 表",
+      "路径参数": { "knowledgeId": "知识点 MySQL ID" },
+      "实现位置": "KnowledgePointController.getCodes()",
+      "优先级": "✅ 已完成"
+    }
+  ],
+
+  "协同需求": [
+    {
+      "编号": "KD-COLLAB-01",
+      "需求方": "学习目录功能负责人",
+      "标题": "LearningPath 节点点击跳转",
+      "说明": "详情页渲染依赖路由参数。学习目录点击节点时需正确设置以下参数：",
+      "路由参数": {
+        "name": "'KnowledgeDetail'",
+        "params": {
+          "module": "模块标识（如 linear-list），用于 moduleLabel 中文映射",
+          "id": "知识点 MySQL 主键 ID（数字字符串，如 '51'）"
+        }
+      },
+      "示例跳转": "router.push({ name: 'KnowledgeDetail', params: { module: 'linear-list', id: '51' } })"
+    },
+    {
+      "编号": "KD-COLLAB-02",
+      "需求方": "状态管理协调",
+      "标题": "knowledgeStore 状态同步",
+      "说明": "详情页加载成功后向 knowledgeStore 写入 currentNode 和 currentModule，供其他模块（如统计、图谱高亮）读取。",
+      "同步时机": "getKnowledgeDetail(id) 成功后立即写入",
+      "写入数据": {
+        "currentNode": "{ id, name, module, difficulty }",
+        "currentModule": "route.params.module"
+      },
+      "已实现": true
+    }
+  ],
+
+  "接入步骤": {
+    "第1步_数据层": "填充 MySQL knowledge_content 表 → 填充 code_example 表（参考上文 KD-DATA-01、KD-DATA-02）",
+    "第2步_后端": "✅ 已完成 — KD-API-02、KD-API-03 已实现（KnowledgePointController + Service）",
+    "第3步_前端接入": "✅ 已完成 — 页面通过 Promise.all 并行调用 getKnowledgeDetail + getKnowledgeContents + getCodeExamples 渲染全部章节",
+    "第4步_联调验证": "前后端联调：目录树点击 → 详情页加载 → 五段内容全部从数据库渲染 → 状态同步到 Store"
+  }
+}
