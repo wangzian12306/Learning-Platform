@@ -44,5 +44,5 @@ spring-boot-*.log
 *.db
 *.sqlite
 
-# Playwright test artifacts
-.playwright-mcp/
+# AIchat local secret config
+src/python/AIchat/config/apikeys.local.json

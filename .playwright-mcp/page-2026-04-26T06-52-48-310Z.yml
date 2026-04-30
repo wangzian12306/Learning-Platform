@@ -1,0 +1,66 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - tablist [ref=e9]:
+        - tab "题目描述" [selected] [ref=e11]
+      - tabpanel "题目描述" [ref=e13]:
+        - generic [ref=e14]:
+          - heading "两数之和" [level=2] [ref=e15]
+          - generic [ref=e17]: EASY
+          - paragraph [ref=e18]: 给你两个整数 a 和 b，输出它们的和。 从标准输入读取两个整数，输出它们的和。
+          - generic [ref=e19]:
+            - paragraph [ref=e20]:
+              - strong [ref=e21]: 示例 1：
+            - generic [ref=e22]: 输入：3 5 输出：8
+          - generic [ref=e23]:
+            - paragraph [ref=e24]:
+              - strong [ref=e25]: 示例 2：
+            - generic [ref=e26]: 输入：0 0 输出：0
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e30] [cursor=pointer]:
+          - generic:
+            - combobox [ref=e32]
+            - generic [ref=e33]: C++
+          - img [ref=e36]
+        - button "运行" [ref=e38] [cursor=pointer]:
+          - generic [ref=e39]: 运行
+        - button "提交" [ref=e40] [cursor=pointer]:
+          - generic [ref=e41]: 提交
+      - code [ref=e45]:
+        - generic [ref=e46]:
+          - textbox "Editor content"
+          - textbox [ref=e47]
+          - generic [ref=e49]:
+            - generic [ref=e52]: "1"
+            - generic [ref=e54]: "2"
+            - generic [ref=e129]:
+              - generic [ref=e130] [cursor=pointer]: 
+              - generic [ref=e131]: "3"
+            - generic [ref=e58]: "4"
+            - generic [ref=e60]: "5"
+            - generic [ref=e62]: "6"
+            - generic [ref=e64]: "7"
+          - generic [ref=e77]:
+            - generic [ref=e79]: "#include<bits/stdc++.h>"
+            - generic [ref=e81]: using namespace std;
+            - generic [ref=e83]: "int main(){"
+            - generic [ref=e85]: // 在此编写代码
+            - generic [ref=e89]: return 0;
+            - generic [ref=e91]: "}"
+      - generic [ref=e94]:
+        - tablist [ref=e98]:
+          - tab "测试用例" [ref=e100]
+          - tab "测试结果" [selected] [ref=e101]
+        - tabpanel "测试结果" [ref=e132]:
+          - generic [ref=e133]:
+            - paragraph [ref=e134]: 输出
+            - generic [ref=e135]: (无输出)
+  - generic [ref=e116]:
+    - generic "Toggle devtools panel" [ref=e117] [cursor=pointer]:
+      - img [ref=e118]
+    - generic "Toggle Component Inspector" [ref=e123] [cursor=pointer]:
+      - img [ref=e124]
+  - generic [ref=e128]:
+    - alert
+    - alert

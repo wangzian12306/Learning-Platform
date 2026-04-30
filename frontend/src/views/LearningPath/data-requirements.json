@@ -1,0 +1,208 @@
+{
+  "_文档说明": "学习目录功能 — 前端需要其他人提供的数据与接口（供后端负责人、数据层负责人、知识详情负责人参考）",
+  "_维护人": "学习目录功能负责人",
+  "_最后更新": "2026-04-26",
+
+  "依赖方清单": [
+    {
+      "依赖方": "数据层负责人",
+      "依赖内容": ["MySQL seed 数据", "Neo4j 节点与关系数据"],
+      "优先级": "高"
+    },
+    {
+      "依赖方": "后端负责人",
+      "依赖内容": ["目录树 API", "前置依赖 API", "学习进度 API"],
+      "优先级": "高"
+    },
+    {
+      "依赖方": "知识点详情页负责人",
+      "依赖内容": ["KnowledgeDetail/index.vue 页面内容"],
+      "优先级": "中"
+    }
+  ],
+
+  "数据需求": [
+    {
+      "编号": "DATA-01",
+      "需求方": "数据层负责人",
+      "标题": "MySQL knowledge_point 表种子数据",
+      "说明": "前端学习目录树渲染依赖此表。需要按照《数据结构》课程大纲，填充约 50 个核心知识点，含层级关系（parent_id）。",
+      "目标表": "knowledge_point",
+      "字段清单": {
+        "id": "自增主键（由 DB 生成）",
+        "neo4j_id": "Neo4j 节点 ID，格式 KP_{模块缩写}_{序号}，如 KP_LL_001",
+        "name": "知识点中文名，如 '线性表'、'单链表'",
+        "code": "知识点英文编码（大写_分隔），如 LINEAR_LIST、SINGLY_LINKED_LIST",
+        "parent_id": "父知识点 ID，顶层节点为 NULL",
+        "module": "所属模块：SET / LINEAR_LIST / TREE / GRAPH / SEARCH / SORT",
+        "level": "层级：1=模块级 / 2=子模块 / 3=具体知识点",
+        "difficulty": "难度：EASY / MEDIUM / HARD",
+        "description": "知识点描述文本",
+        "core_points": "核心考点文本"
+      },
+      "数据量估算": "约 50 条（6 模块 × 平均 8 知识点）",
+      "参考示例": [
+        { "neo4j_id": "KP_LL_001", "name": "线性表", "code": "LINEAR_LIST", "parent_id": null, "module": "LINEAR_LIST", "level": 1, "difficulty": "EASY" },
+        { "neo4j_id": "KP_LL_003", "name": "链表", "code": "LINKED_LIST", "parent_id": 3, "module": "LINEAR_LIST", "level": 2, "difficulty": "MEDIUM" },
+        { "neo4j_id": "KP_LL_004", "name": "单链表", "code": "SINGLY_LINKED_LIST", "parent_id": 5, "module": "LINEAR_LIST", "level": 3, "difficulty": "MEDIUM" }
+      ],
+      "前端Mock参考": "frontend/src/views/LearningPath/index.vue 中 mockTreeData 变量（约 46 个节点）"
+    },
+
+    {
+      "编号": "DATA-02",
+      "需求方": "数据层负责人",
+      "标题": "Neo4j KnowledgePoint 节点导入",
+      "说明": "每个 MySQL knowledge_point 行需在 Neo4j 中创建对应节点，用于图遍历（前置依赖查询）和知识图谱可视化。",
+      "CSV文件": "data-layer/data/neo4j_import/nodes/knowledge_points.csv",
+      "映射关系": "mysql_id 字段关联 MySQL 的 id。导入后需保证 mysql_id 正确对应。",
+      "字段": ["neo4j_id", "name", "code", "module", "level", "difficulty", "description", "core_points", "mysql_id"],
+      "数据量": "与 MySQL knowledge_point 表一一对应（约 50 条）",
+      "导入命令参考": "data-layer/scripts/neo4j/import_template.cypher"
+    },
+
+    {
+      "编号": "DATA-03",
+      "需求方": "数据层负责人",
+      "标题": "Neo4j PARENT_OF 关系导入",
+      "说明": "表示知识点的层级包含关系，用于图谱可视化和按模块分组。",
+      "CSV文件": "data-layer/data/neo4j_import/relationships/parent_of.csv",
+      "关系类型": ":PARENT_OF",
+      "字段": [":START_ID（父neo4j_id）", ":END_ID（子neo4j_id）", "order（层级排序）"],
+      "数据量": "与 knowledge_point 表中 parent_id 关系一一对应",
+      "示例": [
+        { "START_ID": "KP_LL_001", "END_ID": "KP_LL_003", "order": 2 },
+        { "START_ID": "KP_LL_003", "END_ID": "KP_LL_004", "order": 1 }
+      ]
+    },
+
+    {
+      "编号": "DATA-04",
+      "需求方": "数据层负责人",
+      "标题": "Neo4j RELATED_TO 关系导入（前置依赖）",
+      "说明": "表示知识点之间的前置依赖关系。学习目录 hover 时显示 '需先学习 XXX' 提示。",
+      "CSV文件": "data-layer/data/neo4j_import/relationships/related_to.csv",
+      "关系类型": ":RELATED_TO",
+      "字段": [":START_ID（当前节点）", ":END_ID（前置节点）", "type（固定值 PREREQUISITE）", "strength（依赖强度 1-10）"],
+      "数据量": "约 30-50 条（跨模块依赖如 '栈 → 深度优先搜索'）",
+      "示例": [
+        { "START_ID": "KP_LL_003", "END_ID": "KP_LL_002", "type": "PREREQUISITE", "strength": 5 },
+        { "START_ID": "KP_GRAPH_006", "END_ID": "KP_LL_007", "type": "PREREQUISITE", "strength": 4 }
+      ],
+      "业务逻辑": "START_ID 是当前想学的知识点，END_ID 是必须先学的前置知识点。前端会反查，即查询谁依赖了当前节点。"
+    }
+  ],
+
+  "接口需求": [
+    {
+      "编号": "API-01",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/knowledge/tree",
+      "说明": "返回完整目录树（多级JSON，含children递归）",
+      "数据来源": "MySQL knowledge_point 表",
+      "构建逻辑": "通过 parent_id 字段递归组装为树形结构",
+      "响应格式": {
+        "code": 200,
+        "message": "操作成功",
+        "data": [
+          {
+            "id": 3,
+            "neo4jId": "KP_LL_001",
+            "name": "线性表",
+            "code": "LINEAR_LIST",
+            "module": "LINEAR_LIST",
+            "level": 1,
+            "difficulty": "EASY",
+            "children": [
+              {
+                "id": 5,
+                "neo4jId": "KP_LL_003",
+                "name": "链表",
+                "code": "LINKED_LIST",
+                "module": "LINEAR_LIST",
+                "level": 2,
+                "difficulty": "MEDIUM",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "优先级": "最高（核心接口，学习目录必须）"
+    },
+
+    {
+      "编号": "API-02",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/knowledge/{id}/prerequisites",
+      "说明": "返回知识点前置依赖列表，用于路径引导",
+      "数据来源": "Neo4j RELATED_TO {type: PREREQUISITE} 关系",
+      "路径参数": { "id": "知识点 MySQL ID" },
+      "响应格式": {
+        "code": 200,
+        "data": {
+          "prerequisites": [
+            { "id": 3, "neo4jId": "KP_LL_001", "name": "线性表" }
+          ]
+        }
+      },
+      "优先级": "中（可后续接入，当前前端用静态数据）"
+    },
+
+    {
+      "编号": "API-03",
+      "需求方": "后端负责人",
+      "方法": "GET",
+      "路径": "/api/learning/progress",
+      "说明": "返回登录用户所有知识点的学习状态",
+      "数据来源": "MySQL learning_progress 表",
+      "请求参数": { "userId": "用户ID（暂用 1）" },
+      "响应格式": {
+        "code": 200,
+        "data": {
+          "progressMap": {
+            "1": "completed",
+            "5": "in_progress"
+          }
+        }
+      },
+      "状态值": "not_started / in_progress / completed",
+      "优先级": "中（可后续接入，当前前端用静态模拟数据）"
+    }
+  ],
+
+  "协同需求": [
+    {
+      "编号": "COLLAB-01",
+      "需求方": "知识点详情页负责人",
+      "标题": "KnowledgeDetail 页面内容填充",
+      "说明": "学习目录右侧面板由 <router-view /> 渲染 KnowledgeDetail/index.vue。目前该页面是占位空壳，需要知识详情负责人填充以下内容：",
+      "需显示的信息": [
+        "知识点标题与基本定义",
+        "核心性质与结构图示",
+        "基本操作讲解（insert/delete/find）",
+        "C++ 代码示例（带注释）",
+        "时间/空间复杂度分析"
+      ],
+      "页面接收参数": {
+        "route.params.module": "模块名（如 linear_list）",
+        "route.params.id": "知识点 MySQL ID"
+      },
+      "可用的 Store": {
+        "knowledgeStore.currentNode": "{ id, name, module, difficulty } — 当前选中的知识点",
+        "knowledgeStore.currentModule": "当前模块字符串"
+      },
+      "可调用的 API": "src/api/modules/knowledge.js 中的 getKnowledgeDetail(id) 和 getCodeExamples(knowledgeId)",
+      "文件位置": "frontend/src/views/KnowledgeDetail/index.vue"
+    }
+  ],
+
+  "接入步骤": {
+    "第1步_数据层": "填充 MySQL knowledge_point 表种子数据 → 导出 Neo4j CSV → 导入 Neo4j 节点和关系",
+    "第2步_后端": "实现 API-01 /knowledge/tree → API-02 /prerequisites → API-03 /progress",
+    "第3步_前端接入": "删除 mockTreeData → 在 onMounted 中调用 getKnowledgeTree() → 进度用 loadProgressMap() 批量加载",
+    "第4步_详情协同": "知识详情负责人填充 KnowledgeDetail → 学习目录点击即可看到完整详情"
+  }
+}

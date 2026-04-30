@@ -1,0 +1,90 @@
+version: '3.8'
+
+# ============================================
+# 数据层 Docker 配置
+# 用途: 仅运行 MySQL和 Neo4j数据库
+# 维护者: 数据层负责人
+# ============================================
+
+services:
+  # MySQL 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: learning-platform-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: learning_platform
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "13306:3306"
+    volumes:
+      # 初始化脚本挂载
+      - ../scripts/mysql:/docker-entrypoint-initdb.d
+      # 模块SQL脚本挂载
+      - ../scripts/mysql/mysql:/docker-entrypoint-initdb.d/mysql-modules
+      # 数据持久化
+      - mysql_data:/var/lib/mysql
+    command: 
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    networks:
+      - data-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Neo4j 图数据库服务
+  neo4j:
+    image: neo4j:5.19
+    container_name: learning-platform-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/neo4j123
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_memory_pagecache_size: 512M
+      NEO4J_dbms_memory_heap_max__size: 512M
+      NEO4J_dbms_security_procedures_unrestricted: 'apoc.*'
+      # 自动导入配置
+      NEO4J_dbms_security_procedures_allowlist: 'apoc.*'
+    ports:
+      - "17474:7474"  # HTTP 浏览器访问
+      - "17687:7687"  # Bolt 协议连接
+    volumes:
+      # 数据持久化
+      - neo4j_data:/data
+      # Neo4j导入文件挂载
+      - ../data/neo4j_import:/import
+      # Neo4j脚本挂载
+      - ../scripts/neo4j:/scripts
+      # 自动导入入口点
+      - ./neo4j-entrypoint.sh:/neo4j-entrypoint.sh
+    command: ["bash", "/neo4j-entrypoint.sh"]
+    networks:
+      - data-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+    driver: local
+    labels:
+      com.learning-platform.description: "MySQL数据持久化卷"
+  
+  neo4j_data:
+    driver: local
+    labels:
+      com.learning-platform.description: "Neo4j数据持久化卷"
+
+networks:
+  data-network:
+    driver: bridge
+    labels:
+      com.learning-platform.description: "数据层网络"

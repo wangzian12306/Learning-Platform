@@ -1,0 +1,59 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - tablist [ref=e9]:
+        - tab "题目描述" [selected] [ref=e11]
+      - tabpanel "题目描述" [ref=e13]:
+        - generic [ref=e14]:
+          - heading "两数之和" [level=2] [ref=e15]
+          - generic:
+            - generic: EASY
+          - paragraph [ref=e16]: 给你两个整数 a 和 b，输出它们的和。 从标准输入读取两个整数，输出它们的和。
+          - generic [ref=e17]:
+            - paragraph [ref=e18]:
+              - strong [ref=e19]: 示例 1：
+            - generic [ref=e20]: 输入：3 5 输出：8
+          - generic [ref=e21]:
+            - paragraph [ref=e22]:
+              - strong [ref=e23]: 示例 2：
+            - generic [ref=e24]: 输入：0 0 输出：0
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - generic [ref=e28] [cursor=pointer]:
+          - generic:
+            - combobox [ref=e30]
+            - generic [ref=e31]: C++
+          - img [ref=e34]
+        - button "运行" [ref=e36] [cursor=pointer]:
+          - generic [ref=e37]: 运行
+        - button "提交" [ref=e38] [cursor=pointer]:
+          - generic [ref=e39]: 提交
+      - code [ref=e43]:
+        - generic [ref=e44]:
+          - textbox "Editor content"
+          - textbox [ref=e45]
+      - generic [ref=e49]:
+        - tablist [ref=e53]:
+          - tab "测试用例" [selected] [ref=e55]
+          - tab "测试结果" [ref=e56]
+        - tabpanel "测试用例" [ref=e58]:
+          - generic [ref=e59]:
+            - button "用例 1" [ref=e60] [cursor=pointer]:
+              - generic [ref=e61]: 用例 1
+            - button "用例 2" [ref=e62] [cursor=pointer]:
+              - generic [ref=e63]: 用例 2
+            - button "用例 3" [ref=e64] [cursor=pointer]:
+              - generic [ref=e65]: 用例 3
+            - generic [ref=e66]:
+              - paragraph [ref=e67]: 输入
+              - generic [ref=e68]: 3 5
+              - paragraph [ref=e69]: 预期输出
+              - generic [ref=e70]: "8"
+  - generic [ref=e71]:
+    - generic "Toggle devtools panel" [ref=e72] [cursor=pointer]:
+      - img [ref=e73]
+    - generic "Toggle Component Inspector" [ref=e78] [cursor=pointer]:
+      - img [ref=e79]
+  - generic [ref=e83]:
+    - alert
+    - alert
