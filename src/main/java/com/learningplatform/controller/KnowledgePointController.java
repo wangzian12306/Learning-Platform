@@ -8,12 +8,13 @@ import com.learningplatform.service.CodeExampleService;
 import com.learningplatform.service.KnowledgeContentService;
 import com.learningplatform.service.KnowledgePointService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/knowledge")
+@RequestMapping(value = "/knowledge", produces = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
 public class KnowledgePointController {
 
     @Autowired

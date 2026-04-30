@@ -181,39 +181,41 @@ async function fetchDetail() {
   if (!id) return
 
   loading.value = true
+  point.value = null
   error.value = ''
   notFound.value = false
   contents.value = []
   codes.value = []
 
-  try {
-    const [detail, contentList, codeList] = await Promise.all([
-      getKnowledgeDetail(id),
-      getKnowledgeContents(id),
-      getCodeExamples(id),
-    ])
+  const [detailRes, contentsRes, codesRes] = await Promise.allSettled([
+    getKnowledgeDetail(id),
+    getKnowledgeContents(id),
+    getCodeExamples(id),
+  ])
 
-    if (!detail) {
-      notFound.value = true
-      return
-    }
+  const detail = detailRes.status === 'fulfilled' ? detailRes.value : null
 
-    point.value = detail
-    contents.value = contentList || []
-    codes.value = codeList || []
-
-    knowledgeStore.setCurrentNode({
-      id: detail.id,
-      name: detail.name,
-      module: route.params.module,
-      difficulty: detail.difficulty,
-    })
-    knowledgeStore.setCurrentModule(route.params.module)
-  } catch (e) {
-    error.value = e.message || '加载失败'
-  } finally {
+  if (!detail) {
+    error.value = detailRes.status === 'rejected'
+      ? (detailRes.reason?.message || '接口请求失败')
+      : ''
+    if (!error.value) notFound.value = true
     loading.value = false
+    return
   }
+
+  point.value = detail
+  contents.value = contentsRes.status === 'fulfilled' ? (contentsRes.value || []) : []
+  codes.value = codesRes.status === 'fulfilled' ? (codesRes.value || []) : []
+
+  knowledgeStore.setCurrentNode({
+    id: detail.id,
+    name: detail.name,
+    module: route.params.module,
+    difficulty: detail.difficulty,
+  })
+  knowledgeStore.setCurrentModule(route.params.module)
+  loading.value = false
 }
 
 watch(
