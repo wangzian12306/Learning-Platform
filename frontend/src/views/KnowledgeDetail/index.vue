@@ -73,7 +73,7 @@
           <div v-for="(example, i) in codeExamples" :key="i" class="code-block">
             <div class="code-title">{{ example.title }}</div>
             <p v-if="example.description" class="code-desc">{{ example.description }}</p>
-            <pre class="code-pre"><code>{{ example.code }}</code></pre>
+            <pre class="code-pre"><code class="code-text">{{ example.code }}</code></pre>
           </div>
         </div>
         <el-empty v-else description="代码示例待补充" :image-size="60" />
@@ -92,6 +92,13 @@
       </el-card>
     </template>
 
+    <!-- 数据不存在 -->
+    <el-result
+      v-else-if="!loading && notFound"
+      icon="info"
+      title="知识点未添加"
+      :sub-title="`数据库中暂无「${moduleLabel || ''}」模块下 ID 为 ${route.params.id} 的知识点数据。`"
+    />
     <!-- 加载失败 -->
     <el-result
       v-else-if="!loading && error"
@@ -122,6 +129,7 @@ const knowledgeStore = useKnowledgeStore()
 const point = ref(null)
 const loading = ref(false)
 const error = ref('')
+const notFound = ref(false)
 
 const difficultyLabel = { EASY: '简单', MEDIUM: '中等', HARD: '困难' }
 function difficultyTagType(d) {
@@ -174,6 +182,7 @@ async function fetchDetail() {
 
   loading.value = true
   error.value = ''
+  notFound.value = false
   contents.value = []
   codes.value = []
 
@@ -183,6 +192,12 @@ async function fetchDetail() {
       getKnowledgeContents(id),
       getCodeExamples(id),
     ])
+
+    if (!detail) {
+      notFound.value = true
+      return
+    }
+
     point.value = detail
     contents.value = contentList || []
     codes.value = codeList || []
@@ -326,8 +341,14 @@ onMounted(() => {
   overflow-x: auto;
 }
 
-.code-pre code {
+.code-text {
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #d4d4d4;
+  background: transparent;
+  padding: 0;
+  border: none;
 }
 
 :deep(.el-card__header) {
