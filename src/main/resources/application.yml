@@ -19,6 +19,11 @@ spring:
       username: neo4j
       password: neo4j123
 
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
   servlet:
     multipart:
       max-file-size: 100MB

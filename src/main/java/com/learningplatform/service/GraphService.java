@@ -29,7 +29,7 @@ public class GraphService {
      * 获取所有知识点节点
      */
     private List<Map<String, Object>> getAllNodes() {
-        return neo4jClient.query(
+        return toTypedList(neo4jClient.query(
                 "MATCH (n:KnowledgePoint) RETURN n.neo4j_id AS id, n.name AS name, " +
                         "n.code AS code, n.module AS module, n.level AS level, " +
                         "n.difficulty AS difficulty, n.description AS description, " +
@@ -38,25 +38,24 @@ public class GraphService {
                 .fetchAs(Map.class)
                 .mappedBy((typeSystem, record) -> {
                     Map<String, Object> node = new HashMap<>();
-                    node.put("id", record.get("id").asString());
-                    node.put("name", record.get("name").asString());
-                    node.put("code", record.get("code").asString());
-                    node.put("module", record.get("module").asString());
-                    node.put("level", record.get("level").asInt());
-                    node.put("difficulty", record.get("difficulty").asString());
-                    node.put("description", record.get("description").asString());
-                    node.put("corePoints", record.get("corePoints").asString());
+                    node.put("id", getValue(record, "id"));
+                    node.put("name", getValue(record, "name"));
+                    node.put("code", getValue(record, "code"));
+                    node.put("module", getValue(record, "module"));
+                    node.put("level", getInt(record, "level"));
+                    node.put("difficulty", getValue(record, "difficulty"));
+                    node.put("description", getValue(record, "description"));
+                    node.put("corePoints", getValue(record, "corePoints"));
                     return node;
                 })
-                .all()
-                .stream().toList();
+                .all());
     }
 
     /**
      * 获取所有关系
      */
     private List<Map<String, Object>> getAllEdges() {
-        return neo4jClient.query(
+        return toTypedList(neo4jClient.query(
                 "MATCH (a:KnowledgePoint)-[r]->(b:KnowledgePoint) " +
                         "RETURN a.neo4j_id AS source, b.neo4j_id AS target, " +
                         "type(r) AS type, r.reason AS reason, r.order AS sortOrder"
@@ -64,19 +63,20 @@ public class GraphService {
                 .fetchAs(Map.class)
                 .mappedBy((typeSystem, record) -> {
                     Map<String, Object> edge = new HashMap<>();
-                    edge.put("source", record.get("source").asString());
-                    edge.put("target", record.get("target").asString());
-                    edge.put("type", record.get("type").asString());
-                    if (record.get("reason") != null) {
-                        edge.put("reason", record.get("reason").asString());
+                    edge.put("source", getValue(record, "source"));
+                    edge.put("target", getValue(record, "target"));
+                    edge.put("type", getValue(record, "type"));
+                    String reason = getValue(record, "reason");
+                    if (reason != null) {
+                        edge.put("reason", reason);
                     }
-                    if (record.get("sortOrder") != null) {
-                        edge.put("order", record.get("sortOrder").asInt());
+                    Object sortOrder = getInt(record, "sortOrder");
+                    if (sortOrder != null) {
+                        edge.put("order", sortOrder);
                     }
                     return edge;
                 })
-                .all()
-                .stream().toList();
+                .all());
     }
 
     /**
@@ -94,14 +94,14 @@ public class GraphService {
                 .fetchAs(Map.class)
                 .mappedBy((typeSystem, record) -> {
                     Map<String, Object> n = new HashMap<>();
-                    n.put("id", record.get("id").asString());
-                    n.put("name", record.get("name").asString());
-                    n.put("code", record.get("code").asString());
-                    n.put("module", record.get("module").asString());
-                    n.put("level", record.get("level").asInt());
-                    n.put("difficulty", record.get("difficulty").asString());
-                    n.put("description", record.get("description").asString());
-                    n.put("corePoints", record.get("corePoints").asString());
+                    n.put("id", getValue(record, "id"));
+                    n.put("name", getValue(record, "name"));
+                    n.put("code", getValue(record, "code"));
+                    n.put("module", getValue(record, "module"));
+                    n.put("level", getInt(record, "level"));
+                    n.put("difficulty", getValue(record, "difficulty"));
+                    n.put("description", getValue(record, "description"));
+                    n.put("corePoints", getValue(record, "corePoints"));
                     return n;
                 })
                 .one().orElse(null);
@@ -111,7 +111,7 @@ public class GraphService {
         }
 
         // 查询关联节点
-        List<Map<String, Object>> related = neo4jClient.query(
+        List<Map<String, Object>> related = toTypedList(neo4jClient.query(
                 "MATCH (n:KnowledgePoint {neo4j_id: $id})-[r]-(m:KnowledgePoint) " +
                         "RETURN m.neo4j_id AS id, m.name AS name, type(r) AS relationType"
         )
@@ -119,13 +119,12 @@ public class GraphService {
                 .fetchAs(Map.class)
                 .mappedBy((typeSystem, record) -> {
                     Map<String, Object> r = new HashMap<>();
-                    r.put("id", record.get("id").asString());
-                    r.put("name", record.get("name").asString());
-                    r.put("relationType", record.get("relationType").asString());
+                    r.put("id", getValue(record, "id"));
+                    r.put("name", getValue(record, "name"));
+                    r.put("relationType", getValue(record, "relationType"));
                     return r;
                 })
-                .all()
-                .stream().toList();
+                .all());
 
         node.put("relatedNodes", related);
         return node;
@@ -135,7 +134,7 @@ public class GraphService {
      * 按关键词搜索节点
      */
     public List<Map<String, Object>> searchNodes(String keyword) {
-        return neo4jClient.query(
+        return toTypedList(neo4jClient.query(
                 "MATCH (n:KnowledgePoint) " +
                         "WHERE n.name CONTAINS $keyword OR n.code CONTAINS $keyword OR n.description CONTAINS $keyword " +
                         "RETURN n.neo4j_id AS id, n.name AS name, n.code AS code, " +
@@ -146,17 +145,31 @@ public class GraphService {
                 .fetchAs(Map.class)
                 .mappedBy((typeSystem, record) -> {
                     Map<String, Object> n = new HashMap<>();
-                    n.put("id", record.get("id").asString());
-                    n.put("name", record.get("name").asString());
-                    n.put("code", record.get("code").asString());
-                    n.put("module", record.get("module").asString());
-                    n.put("level", record.get("level").asInt());
-                    n.put("difficulty", record.get("difficulty").asString());
-                    n.put("description", record.get("description").asString());
-                    n.put("corePoints", record.get("corePoints").asString());
+                    n.put("id", getValue(record, "id"));
+                    n.put("name", getValue(record, "name"));
+                    n.put("code", getValue(record, "code"));
+                    n.put("module", getValue(record, "module"));
+                    n.put("level", getInt(record, "level"));
+                    n.put("difficulty", getValue(record, "difficulty"));
+                    n.put("description", getValue(record, "description"));
+                    n.put("corePoints", getValue(record, "corePoints"));
                     return n;
                 })
-                .all()
-                .stream().toList();
+                .all());
+    }
+
+    private static String getValue(org.neo4j.driver.Record record, String key) {
+        var val = record.get(key);
+        return val == null || val.isNull() ? null : val.asString();
+    }
+
+    private static Integer getInt(org.neo4j.driver.Record record, String key) {
+        var val = record.get(key);
+        return val == null || val.isNull() ? null : val.asInt();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> toTypedList(Collection collection) {
+        return ((Collection<Map<String, Object>>) collection).stream().toList();
     }
 }

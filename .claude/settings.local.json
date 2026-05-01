@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(mvn dependency:tree -Dincludes=com.baomidou)",
-      "Bash(mvn dependency:tree -Dincludes=org.mybatis)"
-    ]
-  }
-}

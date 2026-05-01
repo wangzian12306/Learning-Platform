@@ -4,6 +4,10 @@
 # 用途: Neo4j启动后自动导入数据
 # ============================================
 
+# 设置UTF-8编码，防止中文乱码
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
 # 启动Neo4j服务
 echo "启动Neo4j服务..."
 /startup/docker-entrypoint.sh neo4j &
