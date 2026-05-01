@@ -59,6 +59,12 @@ const router = createRouter({
           meta: { title: '习题模块' },
         },
         {
+          path: 'exercise/:id',
+          name: 'ExerciseDetail',
+          component: () => import('@/views/Exercise/ExerciseDetail.vue'),
+          meta: { title: '习题详情' },
+        },
+        {
           path: 'statistics',
           name: 'Statistics',
           component: () => import('@/views/Statistics/index.vue'),

@@ -10,6 +10,11 @@ export function runCode(data) {
   return http.post('/code/run', data)
 }
 
+/** 提交代码判题，返回测试用例通过情况 */
+export function submitCode(data) {
+  return http.post('/code/submit', data)
+}
+
 /** 获取推荐学习路径 */
 export function getRecommendedPath(startNodeId) {
   return http.get('/knowledge/path', { params: { startNodeId } })

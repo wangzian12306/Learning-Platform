@@ -41,3 +41,6 @@ logging:
   level:
     com.learningplatform: debug
     org.springframework: info
+
+piston:
+  url: http://localhost:2000
