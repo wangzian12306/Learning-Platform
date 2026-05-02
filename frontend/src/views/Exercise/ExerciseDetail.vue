@@ -191,7 +191,7 @@ async function onRun() {
       code: code.value,
       stdin: props.exercise.testCases?.[activeCaseIndex.value]?.input || ''
     })
-    runResult.value = res.data.data
+    runResult.value = res
   } catch (e) {
     runResult.value = { compileError: '请求失败：' + e.message }
   } finally {
@@ -209,7 +209,7 @@ async function onSubmit() {
       code: code.value,
       testCases: props.exercise.testCases || []
     })
-    submitResult.value = res.data.data
+    submitResult.value = res
   } catch (e) {
     submitResult.value = { status: 'RUNTIME_ERROR', errorMessage: '请求失败：' + e.message, passCount: 0, totalCount: 0, testResults: [] }
   } finally {
