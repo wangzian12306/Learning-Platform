@@ -2,7 +2,7 @@
   <div class="learning-path-layout">
     <!-- ========== 左侧：目录树 ========== -->
     <aside class="tree-panel" :class="{ collapsed: treeCollapsed }">
-      <template v-if="!treeCollapsed">
+      <div v-show="!treeCollapsed">
         <div class="panel-header">
           <h3 class="panel-title">目录</h3>
           <div class="panel-actions">
@@ -32,7 +32,9 @@
         />
 
         <div class="tree-wrapper">
+          <el-empty v-if="searchKeyword && filteredCount === 0" description="未找到匹配的知识点" :image-size="64" />
           <el-tree
+            v-show="!(searchKeyword && filteredCount === 0)"
             ref="treeRef"
             :data="treeData"
             :props="treeProps"
@@ -80,9 +82,9 @@
             </template>
           </el-tree>
         </div>
-      </template>
+      </div>
 
-      <div v-else class="collapsed-strip">
+      <div v-show="treeCollapsed" class="collapsed-strip">
         <el-tooltip content="展开目录" placement="right">
           <el-button :icon="DArrowRight" text @click="treeCollapsed = false" />
         </el-tooltip>
@@ -97,9 +99,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, InfoFilled, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useLearningStore } from '@/stores/learning'
 
@@ -112,626 +115,26 @@ const searchKeyword = ref('')
 const treeCollapsed = ref(false)
 
 // ================================================================
-//  静态 Mock 数据（后续替换为 getKnowledgeTree() API 调用）
-//  数据结构与后端约定见同目录下的 data-requirements.json
+//  数据加载：从后端 /api/knowledge/tree 获取目录树
+//  数据结构契约见同目录下的 data-requirements.json
 // ================================================================
-const mockTreeData = [
-  {
-    id: 1,
-    neo4jId: 'KP_SET_001',
-    name: '集合',
-    code: 'SET',
-    module: 'SET',
-    level: 1,
-    difficulty: 'EASY',
-    prerequisites: [],
-    children: [
-      {
-        id: 2,
-        neo4jId: 'KP_SET_002',
-        name: '集合运算',
-        code: 'SET_OPERATION',
-        module: 'SET',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_SET_001'],
-        children: [
-          {
-            id: 21,
-            neo4jId: 'KP_SET_003',
-            name: '并集与交集',
-            code: 'UNION_INTERSECTION',
-            module: 'SET',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_SET_002'],
-            children: [],
-          },
-          {
-            id: 22,
-            neo4jId: 'KP_SET_004',
-            name: '差集与补集',
-            code: 'DIFFERENCE_COMPLEMENT',
-            module: 'SET',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_SET_002'],
-            children: [],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 3,
-    neo4jId: 'KP_LL_001',
-    name: '线性表',
-    code: 'LINEAR_LIST',
-    module: 'LINEAR_LIST',
-    level: 1,
-    difficulty: 'EASY',
-    prerequisites: [],
-    children: [
-      {
-        id: 4,
-        neo4jId: 'KP_LL_002',
-        name: '数组',
-        code: 'ARRAY',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'EASY',
-        prerequisites: ['KP_LL_001'],
-        children: [],
-      },
-      {
-        id: 5,
-        neo4jId: 'KP_LL_003',
-        name: '链表',
-        code: 'LINKED_LIST',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_LL_001', 'KP_LL_002'],
-        children: [
-          {
-            id: 51,
-            neo4jId: 'KP_LL_004',
-            name: '单链表',
-            code: 'SINGLY_LINKED_LIST',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_003'],
-            children: [],
-          },
-          {
-            id: 52,
-            neo4jId: 'KP_LL_005',
-            name: '双向链表',
-            code: 'DOUBLY_LINKED_LIST',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_003'],
-            children: [],
-          },
-          {
-            id: 53,
-            neo4jId: 'KP_LL_006',
-            name: '循环链表',
-            code: 'CIRCULAR_LINKED_LIST',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_LL_003', 'KP_LL_004'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 6,
-        neo4jId: 'KP_LL_007',
-        name: '栈',
-        code: 'STACK',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_LL_001'],
-        children: [
-          {
-            id: 61,
-            neo4jId: 'KP_LL_008',
-            name: '顺序栈',
-            code: 'SEQUENTIAL_STACK',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_007'],
-            children: [],
-          },
-          {
-            id: 62,
-            neo4jId: 'KP_LL_009',
-            name: '链式栈',
-            code: 'LINKED_STACK',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_007', 'KP_LL_003'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 7,
-        neo4jId: 'KP_LL_010',
-        name: '队列',
-        code: 'QUEUE',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_LL_001'],
-        children: [
-          {
-            id: 71,
-            neo4jId: 'KP_LL_011',
-            name: '循环队列',
-            code: 'CIRCULAR_QUEUE',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_010'],
-            children: [],
-          },
-          {
-            id: 72,
-            neo4jId: 'KP_LL_012',
-            name: '链式队列',
-            code: 'LINKED_QUEUE',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_LL_010', 'KP_LL_003'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 8,
-        neo4jId: 'KP_LL_013',
-        name: '串',
-        code: 'STRING',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_LL_001'],
-        children: [
-          {
-            id: 81,
-            neo4jId: 'KP_LL_014',
-            name: '模式匹配算法',
-            code: 'PATTERN_MATCHING',
-            module: 'LINEAR_LIST',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_LL_013'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 9,
-        neo4jId: 'KP_LL_015',
-        name: '广义表',
-        code: 'GENERALIZED_LIST',
-        module: 'LINEAR_LIST',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_LL_001', 'KP_LL_003'],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 10,
-    neo4jId: 'KP_TREE_001',
-    name: '树',
-    code: 'TREE',
-    module: 'TREE',
-    level: 1,
-    difficulty: 'EASY',
-    prerequisites: [],
-    children: [
-      {
-        id: 11,
-        neo4jId: 'KP_TREE_002',
-        name: '二叉树',
-        code: 'BINARY_TREE',
-        module: 'TREE',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_TREE_001'],
-        children: [
-          {
-            id: 111,
-            neo4jId: 'KP_TREE_003',
-            name: '二叉树遍历',
-            code: 'TREE_TRAVERSAL',
-            module: 'TREE',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_TREE_002'],
-            children: [],
-          },
-          {
-            id: 112,
-            neo4jId: 'KP_TREE_004',
-            name: '二叉搜索树',
-            code: 'BINARY_SEARCH_TREE',
-            module: 'TREE',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_TREE_002'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 12,
-        neo4jId: 'KP_TREE_005',
-        name: 'AVL 树',
-        code: 'AVL_TREE',
-        module: 'TREE',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_TREE_002', 'KP_TREE_004'],
-        children: [],
-      },
-      {
-        id: 13,
-        neo4jId: 'KP_TREE_006',
-        name: '红黑树',
-        code: 'RED_BLACK_TREE',
-        module: 'TREE',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_TREE_002', 'KP_TREE_004'],
-        children: [],
-      },
-      {
-        id: 14,
-        neo4jId: 'KP_TREE_007',
-        name: 'B 树与 B+ 树',
-        code: 'B_TREE',
-        module: 'TREE',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_TREE_002'],
-        children: [
-          {
-            id: 141,
-            neo4jId: 'KP_TREE_008',
-            name: 'B 树插入删除',
-            code: 'B_TREE_OPS',
-            module: 'TREE',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_TREE_007'],
-            children: [],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 20,
-    neo4jId: 'KP_GRAPH_001',
-    name: '图',
-    code: 'GRAPH',
-    module: 'GRAPH',
-    level: 1,
-    difficulty: 'MEDIUM',
-    prerequisites: [],
-    children: [
-      {
-        id: 201,
-        neo4jId: 'KP_GRAPH_002',
-        name: '图的存储结构',
-        code: 'GRAPH_STORAGE',
-        module: 'GRAPH',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_GRAPH_001'],
-        children: [
-          {
-            id: 211,
-            neo4jId: 'KP_GRAPH_003',
-            name: '邻接矩阵',
-            code: 'ADJACENCY_MATRIX',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'EASY',
-            prerequisites: ['KP_GRAPH_002'],
-            children: [],
-          },
-          {
-            id: 212,
-            neo4jId: 'KP_GRAPH_004',
-            name: '邻接表',
-            code: 'ADJACENCY_LIST',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'EASY',
-            prerequisites: ['KP_GRAPH_002'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 202,
-        neo4jId: 'KP_GRAPH_005',
-        name: '图的遍历',
-        code: 'GRAPH_TRAVERSAL',
-        module: 'GRAPH',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_GRAPH_001', 'KP_GRAPH_002'],
-        children: [
-          {
-            id: 221,
-            neo4jId: 'KP_GRAPH_006',
-            name: '深度优先搜索',
-            code: 'DFS',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_GRAPH_005', 'KP_LL_007'],
-            children: [],
-          },
-          {
-            id: 222,
-            neo4jId: 'KP_GRAPH_007',
-            name: '广度优先搜索',
-            code: 'BFS',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'MEDIUM',
-            prerequisites: ['KP_GRAPH_005', 'KP_LL_010'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 203,
-        neo4jId: 'KP_GRAPH_008',
-        name: '最小生成树',
-        code: 'MST',
-        module: 'GRAPH',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_GRAPH_001'],
-        children: [
-          {
-            id: 231,
-            neo4jId: 'KP_GRAPH_009',
-            name: 'Prim 算法',
-            code: 'PRIM',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_GRAPH_008'],
-            children: [],
-          },
-          {
-            id: 232,
-            neo4jId: 'KP_GRAPH_010',
-            name: 'Kruskal 算法',
-            code: 'KRUSKAL',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_GRAPH_008'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 204,
-        neo4jId: 'KP_GRAPH_011',
-        name: '最短路径',
-        code: 'SHORTEST_PATH',
-        module: 'GRAPH',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_GRAPH_002'],
-        children: [
-          {
-            id: 241,
-            neo4jId: 'KP_GRAPH_012',
-            name: 'Dijkstra 算法',
-            code: 'DIJKSTRA',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_GRAPH_011'],
-            children: [],
-          },
-          {
-            id: 242,
-            neo4jId: 'KP_GRAPH_013',
-            name: 'Floyd 算法',
-            code: 'FLOYD',
-            module: 'GRAPH',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_GRAPH_011'],
-            children: [],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 30,
-    neo4jId: 'KP_SEARCH_001',
-    name: '查找',
-    code: 'SEARCH',
-    module: 'SEARCH',
-    level: 1,
-    difficulty: 'MEDIUM',
-    prerequisites: [],
-    children: [
-      {
-        id: 31,
-        neo4jId: 'KP_SEARCH_002',
-        name: '顺序查找',
-        code: 'SEQUENTIAL_SEARCH',
-        module: 'SEARCH',
-        level: 2,
-        difficulty: 'EASY',
-        prerequisites: ['KP_SEARCH_001'],
-        children: [],
-      },
-      {
-        id: 32,
-        neo4jId: 'KP_SEARCH_003',
-        name: '二分查找',
-        code: 'BINARY_SEARCH',
-        module: 'SEARCH',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_SEARCH_001'],
-        children: [],
-      },
-      {
-        id: 33,
-        neo4jId: 'KP_SEARCH_004',
-        name: '哈希查找',
-        code: 'HASH_SEARCH',
-        module: 'SEARCH',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_SEARCH_001'],
-        children: [
-          {
-            id: 331,
-            neo4jId: 'KP_SEARCH_005',
-            name: '哈希函数与冲突解决',
-            code: 'HASH_COLLISION',
-            module: 'SEARCH',
-            level: 3,
-            difficulty: 'HARD',
-            prerequisites: ['KP_SEARCH_004'],
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 34,
-        neo4jId: 'KP_SEARCH_006',
-        name: '树表查找',
-        code: 'TREE_SEARCH',
-        module: 'SEARCH',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_SEARCH_001', 'KP_TREE_002'],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 40,
-    neo4jId: 'KP_SORT_001',
-    name: '排序',
-    code: 'SORT',
-    module: 'SORT',
-    level: 1,
-    difficulty: 'MEDIUM',
-    prerequisites: [],
-    children: [
-      {
-        id: 41,
-        neo4jId: 'KP_SORT_002',
-        name: '冒泡排序',
-        code: 'BUBBLE_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'EASY',
-        prerequisites: ['KP_SORT_001'],
-        children: [],
-      },
-      {
-        id: 42,
-        neo4jId: 'KP_SORT_003',
-        name: '选择排序',
-        code: 'SELECTION_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'EASY',
-        prerequisites: ['KP_SORT_001'],
-        children: [],
-      },
-      {
-        id: 43,
-        neo4jId: 'KP_SORT_004',
-        name: '插入排序',
-        code: 'INSERTION_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'EASY',
-        prerequisites: ['KP_SORT_001'],
-        children: [],
-      },
-      {
-        id: 44,
-        neo4jId: 'KP_SORT_005',
-        name: '快速排序',
-        code: 'QUICK_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_SORT_001', 'KP_TREE_002'],
-        children: [],
-      },
-      {
-        id: 45,
-        neo4jId: 'KP_SORT_006',
-        name: '归并排序',
-        code: 'MERGE_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_SORT_001'],
-        children: [],
-      },
-      {
-        id: 46,
-        neo4jId: 'KP_SORT_007',
-        name: '堆排序',
-        code: 'HEAP_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'HARD',
-        prerequisites: ['KP_SORT_001', 'KP_TREE_002'],
-        children: [],
-      },
-      {
-        id: 47,
-        neo4jId: 'KP_SORT_008',
-        name: '希尔排序',
-        code: 'SHELL_SORT',
-        module: 'SORT',
-        level: 2,
-        difficulty: 'MEDIUM',
-        prerequisites: ['KP_SORT_001', 'KP_SORT_004'],
-        children: [],
-      },
-    ],
-  },
-]
+const treeData = ref([])
+const loading = ref(false)
 
-// TODO: 后续替换为真实 API 调用
-const treeData = ref(mockTreeData)
+async function loadTree() {
+  loading.value = true
+  try {
+    const { getKnowledgeTree } = await import('@/api/modules/knowledge')
+    treeData.value = await getKnowledgeTree()
+  } catch {
+    ElMessage.warning('目录数据加载失败，请确认后端已启动')
+    treeData.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadTree)
 
 const treeProps = { children: 'children', label: 'name' }
 const defaultExpandedKeys = []
@@ -755,19 +158,6 @@ const statusLabel = { not_started: '未学习', in_progress: '学习中', comple
 
 function getStatus(data) {
   return learningStore.getProgress(data.id)
-}
-
-// 静态演示进度数据（仅 dev 环境下当 progressMap 为空时注入，避免覆盖真实数据）
-if (import.meta.env.DEV && Object.keys(learningStore.progressMap).length === 0) {
-  learningStore.setProgress(1, 'completed')
-  learningStore.setProgress(2, 'completed')
-  learningStore.setProgress(21, 'completed')
-  learningStore.setProgress(3, 'completed')
-  learningStore.setProgress(4, 'completed')
-  learningStore.setProgress(5, 'in_progress')
-  learningStore.setProgress(51, 'in_progress')
-  learningStore.setProgress(10, 'completed')
-  learningStore.setProgress(11, 'in_progress')
 }
 
 // ================================================================
@@ -816,7 +206,7 @@ function handleNodeClick(data) {
 //  搜索过滤
 // ================================================================
 function handleSearch() {
-  treeRef.value.filter(searchKeyword.value)
+  treeRef.value?.filter(searchKeyword.value)
 }
 
 function filterNode(value, data) {
@@ -827,6 +217,19 @@ function filterNode(value, data) {
   )
 }
 
+const filteredCount = computed(() => {
+  if (!searchKeyword.value) return treeData.value.length
+  let count = 0
+  function walk(nodes) {
+    for (const n of nodes) {
+      if (filterNode(searchKeyword.value, n)) count++
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(treeData.value)
+  return count
+})
+
 
 </script>
 
@@ -835,23 +238,23 @@ function filterNode(value, data) {
   display: flex;
   height: calc(100vh - 56px);
   margin: -24px;
+  overflow: hidden;
 }
 
 /* ========== 左侧树面板 ========== */
 .tree-panel {
   width: 320px;
-  min-width: 280px;
   background: #fff;
   border-right: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
   transition: width 0.25s ease;
 }
 
 .tree-panel.collapsed {
   width: 44px;
-  min-width: 44px;
 }
 
 .panel-header {
@@ -881,6 +284,7 @@ function filterNode(value, data) {
 .tree-wrapper {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 8px 8px 4px;
 }
 

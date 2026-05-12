@@ -2,6 +2,7 @@ package com.learningplatform.controller;
 
 import com.learningplatform.common.Result;
 import com.learningplatform.dto.CreateKnowledgePointRequest;
+import com.learningplatform.dto.KnowledgeTreeVO;
 import com.learningplatform.entity.KnowledgePoint;
 import com.learningplatform.service.KnowledgePointService;
 import jakarta.validation.Valid;
@@ -17,6 +18,12 @@ public class KnowledgePointController {
 
     @Autowired
     private KnowledgePointService knowledgePointService;
+
+    @GetMapping("/tree")
+    public Result<List<KnowledgeTreeVO>> tree() {
+        List<KnowledgeTreeVO> tree = knowledgePointService.buildKnowledgeTree();
+        return Result.success(tree);
+    }
 
     @GetMapping("/list")
     public Result<List<KnowledgePoint>> list() {

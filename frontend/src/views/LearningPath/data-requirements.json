@@ -1,7 +1,7 @@
 {
   "_文档说明": "学习目录功能 — 前端需要其他人提供的数据与接口（供后端负责人、数据层负责人、知识详情负责人参考）",
   "_维护人": "学习目录功能负责人",
-  "_最后更新": "2026-04-26",
+  "_最后更新": "2026-05-12",
 
   "依赖方清单": [
     {
@@ -114,6 +114,7 @@
             "module": "LINEAR_LIST",
             "level": 1,
             "difficulty": "EASY",
+            "prerequisites": ["KP_SET_001"],
             "children": [
               {
                 "id": 5,
@@ -123,32 +124,25 @@
                 "module": "LINEAR_LIST",
                 "level": 2,
                 "difficulty": "MEDIUM",
+                "prerequisites": [],
                 "children": []
               }
             ]
           }
         ]
       },
-      "优先级": "最高（核心接口，学习目录必须）"
+      "优先级": "最高（核心接口，学习目录必须）✅ 已实现"
     },
 
     {
       "编号": "API-02",
       "需求方": "后端负责人",
+      "状态": "已废弃 — 前置依赖已嵌入 API-01 的 prerequisites 字段，无需单独接口",
       "方法": "GET",
       "路径": "/api/knowledge/{id}/prerequisites",
-      "说明": "返回知识点前置依赖列表，用于路径引导",
-      "数据来源": "Neo4j RELATED_TO {type: PREREQUISITE} 关系",
-      "路径参数": { "id": "知识点 MySQL ID" },
-      "响应格式": {
-        "code": 200,
-        "data": {
-          "prerequisites": [
-            { "id": 3, "neo4jId": "KP_LL_001", "name": "线性表" }
-          ]
-        }
-      },
-      "优先级": "中（可后续接入，当前前端用静态数据）"
+      "说明": "返回知识点前置依赖列表（已废弃，由 API-01 的 KnowledgeTreeVO.prerequisites 替代）",
+      "数据来源": "Neo4j RELATED_TO 关系",
+      "优先级": "已废弃"
     },
 
     {
@@ -168,8 +162,8 @@
           }
         }
       },
-      "状态值": "not_started / in_progress / completed",
-      "优先级": "中（可后续接入，当前前端用静态模拟数据）"
+      "状态值": "NOT_STARTED / LEARNING / COMPLETED / MASTERED（与 MySQL learning_progress.status 枚举一致）",
+      "优先级": "中（前端已预留 loadProgress() 调用，接口实现后自动生效）"
     }
   ],
 
@@ -200,9 +194,9 @@
   ],
 
   "接入步骤": {
-    "第1步_数据层": "填充 MySQL knowledge_point 表种子数据 → 导出 Neo4j CSV → 导入 Neo4j 节点和关系",
-    "第2步_后端": "实现 API-01 /knowledge/tree → API-02 /prerequisites → API-03 /progress",
-    "第3步_前端接入": "删除 mockTreeData → 在 onMounted 中调用 getKnowledgeTree() → 进度用 loadProgressMap() 批量加载",
-    "第4步_详情协同": "知识详情负责人填充 KnowledgeDetail → 学习目录点击即可看到完整详情"
+    "第1步_数据层": "✅ 已完成 — MySQL knowledge_point 表种子数据 + Neo4j 节点和关系均已导入",
+    "第2步_后端": "✅ API-01 /knowledge/tree 已实现（含 Neo4j 前置依赖嵌入）；⏳ API-03 /learning/progress 待实现",
+    "第3步_前端接入": "✅ 已完成 — onMounted 中调用 getKnowledgeTree() + loadProgress()（静默降级）",
+    "第4步_详情协同": "⏳ 待知识详情负责人填充 KnowledgeDetail → 学习目录点击即可看到完整详情"
   }
 }
