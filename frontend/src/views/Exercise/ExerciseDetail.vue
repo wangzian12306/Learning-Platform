@@ -12,7 +12,7 @@
             </el-tag>
             <p style="white-space:pre-wrap">{{ exercise.description }}</p>
 
-            <template v-if="exercise.testCases">
+            <template v-if="exercise.testCases.length">
               <div v-for="(tc, i) in exercise.testCases.slice(0, 2)" :key="i" class="example-block">
                 <p><strong>示例 {{ i + 1 }}：</strong></p>
                 <pre class="example-pre">输入：{{ tc.input }}
@@ -48,7 +48,7 @@
       <div class="result-area">
         <el-tabs v-model="resultTab">
           <el-tab-pane label="测试用例" name="cases">
-            <div v-if="exercise.testCases" class="cases-list">
+            <div v-if="exercise.testCases.length" class="cases-list">
               <el-button
                 v-for="(_, i) in exercise.testCases.slice(0, 3)"
                 :key="i"
@@ -167,6 +167,31 @@ const activeResultType = ref(null)
 const code = ref(DEFAULT_TEMPLATES['c++'])
 const exercise = ref(LOCAL_EXERCISE)
 
+function parseJsonField(value, fallback) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return value
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return fallback
+  }
+  try {
+    return JSON.parse(value)
+  } catch (e) {
+    console.warn('解析习题 JSON 字段失败:', e)
+    return fallback
+  }
+}
+
+function normalizeTestCases(value) {
+  const testCases = parseJsonField(value, [])
+  return Array.isArray(testCases) ? testCases : []
+}
+
+function normalizeInitialCode(value) {
+  const initialCode = parseJsonField(value, DEFAULT_TEMPLATES)
+  return initialCode && typeof initialCode === 'object' ? initialCode : DEFAULT_TEMPLATES
+}
+
 async function loadExercise() {
   const id = route.params.id
   if (!id) return
@@ -180,8 +205,11 @@ async function loadExercise() {
         difficulty: data.difficulty,
         description: data.description,
         knowledgePointId: data.knowledgePointId,
-        testCases: data.testCases || LOCAL_EXERCISE.testCases,
+        initialCode: normalizeInitialCode(data.initialCode),
+        testCases: normalizeTestCases(data.testCases),
       }
+      code.value = exercise.value.initialCode?.[selectedLanguage.value] || DEFAULT_TEMPLATES[selectedLanguage.value] || ''
+      activeCaseIndex.value = 0
     }
   } catch (e) {
     console.warn('加载习题详情失败，使用本地习题:', e)
