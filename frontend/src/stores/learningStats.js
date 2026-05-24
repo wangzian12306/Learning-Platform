@@ -37,6 +37,7 @@ function createEmptyState() {
 
 export const useLearningStatsStore = defineStore('learningStats', () => {
   const raw = ref(loadFromStorage() || createEmptyState())
+  const knowledgePointModuleMap = ref({})
 
   function persist() {
     saveToStorage(raw.value)
@@ -45,6 +46,35 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
   const knowledgeVisits = computed(() => raw.value.knowledgeVisits || {})
   const dailyStudySeconds = computed(() => raw.value.dailyStudySeconds || {})
   const exerciseRecords = computed(() => raw.value.exerciseRecords || {})
+
+  function buildModuleMap(tree) {
+    if (!Array.isArray(tree)) return
+    const map = {}
+    function walk(nodes, parentModuleName) {
+      if (!nodes) return
+      nodes.forEach(n => {
+        if (n.id != null) {
+          const moduleName = n.children ? (n.name || parentModuleName) : parentModuleName
+          map[String(n.id)] = moduleName
+        }
+        if (n.children) walk(n.children, n.name || parentModuleName)
+      })
+    }
+    walk(tree, '')
+    knowledgePointModuleMap.value = map
+  }
+
+  function getModuleForKnowledgePoint(knowledgePointId) {
+    const key = String(knowledgePointId)
+    const visit = raw.value.knowledgeVisits[key]
+    if (visit && visit.module) {
+      return MODULE_NAMES[visit.module] || visit.module
+    }
+    if (knowledgePointModuleMap.value[key]) {
+      return knowledgePointModuleMap.value[key]
+    }
+    return '未知'
+  }
 
   function recordKnowledgeVisit(knowledgePointId, module) {
     const key = String(knowledgePointId)
@@ -142,8 +172,8 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
 
     for (const eid in raw.value.exerciseRecords) {
       const rec = raw.value.exerciseRecords[eid]
-      const visit = raw.value.knowledgeVisits[String(rec.knowledgePointId)]
-      if (visit && (visit.module === moduleKey || visit.module === moduleName)) {
+      const mod = getModuleForKnowledgePoint(rec.knowledgePointId)
+      if (mod === moduleName) {
         exerciseAttempts += rec.attempts
         exerciseCorrect += rec.correctCount
         exerciseDone++
@@ -183,11 +213,10 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
       if (rec.attempts > 0) {
         const rate = (rec.correctCount / rec.attempts) * 100
         if (rate < 80) {
-          const visit = raw.value.knowledgeVisits[String(rec.knowledgePointId)]
           points.push({
             exerciseId: rec.exerciseId,
             knowledgePointId: rec.knowledgePointId,
-            module: visit ? (MODULE_NAMES[visit.module] || visit.module) : '未知',
+            module: getModuleForKnowledgePoint(rec.knowledgePointId),
             attempts: rec.attempts,
             correctCount: rec.correctCount,
             correctRate: Math.round(rate),
@@ -216,8 +245,8 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
       }
       for (const eid in raw.value.exerciseRecords) {
         const rec = raw.value.exerciseRecords[eid]
-        const visit = raw.value.knowledgeVisits[String(rec.knowledgePointId)]
-        if (visit && visit.module === m) {
+        const mod = getModuleForKnowledgePoint(rec.knowledgePointId)
+        if (mod === m) {
           exerciseDone++
           exerciseAttempts += rec.attempts
           exerciseCorrect += rec.correctCount
@@ -245,8 +274,8 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
       }
       for (const eid in raw.value.exerciseRecords) {
         const rec = raw.value.exerciseRecords[eid]
-        const visit = raw.value.knowledgeVisits[String(rec.knowledgePointId)]
-        if (visit && visit.module === m) {
+        const mod = getModuleForKnowledgePoint(rec.knowledgePointId)
+        if (mod === m) {
           attempts += rec.attempts
           correct += rec.correctCount
         }
@@ -275,6 +304,9 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
     knowledgeVisits,
     dailyStudySeconds,
     exerciseRecords,
+    knowledgePointModuleMap,
+    buildModuleMap,
+    getModuleForKnowledgePoint,
     recordKnowledgeVisit,
     addStudyTime,
     recordExerciseResult,

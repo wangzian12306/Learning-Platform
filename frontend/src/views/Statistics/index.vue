@@ -170,6 +170,8 @@ async function loadTotalCounts() {
     }
     totalKnowledgeCount.value = countNodes(tree)
 
+    store.buildModuleMap(tree)
+
     const counts = {}
     if (Array.isArray(tree)) {
       tree.forEach(mod => {

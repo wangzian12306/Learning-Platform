@@ -71,7 +71,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Close } from '@element-plus/icons-vue'
-import { getKnowledgeByCode } from '@/api/modules/knowledge.js'
+import { getKnowledgeTree } from '@/api/modules/knowledge.js'
 
 const props = defineProps({
   node: { type: Object, default: null },
@@ -90,33 +90,58 @@ const moduleRouteMap = {
 
 async function goToLearning() {
   if (!props.node) return
-  // 按顺序尝试：当前节点 code → 父节点 code → 模块页降级
-  const codesToTry = [props.node.code]
-  // 收集父节点（PARENT_OF 关系中，当前节点是 target 时，source 是父节点）
-  const parentIds = props.allEdges
-    .filter((e) => e.type === 'PARENT_OF' && e.target === props.node.id)
-    .map((e) => e.source)
-  for (const parentId of parentIds) {
-    const parent = props.allNodes.find((n) => n.id === parentId)
-    if (parent?.code) codesToTry.push(parent.code)
-  }
 
   const routeModule = moduleRouteMap[props.node.module] || props.node.module?.toLowerCase() || ''
-  for (const code of codesToTry) {
-    try {
-      const point = await getKnowledgeByCode(code)
-      if (point?.id) {
-        router.push({
-          name: 'KnowledgeDetail',
-          params: { module: routeModule, id: point.id },
-        })
+
+  const codesToTry = [props.node.code]
+  const namesToTry = [props.node.name]
+
+  const parentMap = {}
+  for (const e of props.allEdges) {
+    if (e.type === 'PARENT_OF') parentMap[e.target] = e.source
+  }
+  let cur = props.node.id
+  for (let i = 0; i < 5; i++) {
+    const pid = parentMap[cur]
+    if (!pid) break
+    const parent = props.allNodes.find((n) => n.id === pid)
+    if (parent?.code) codesToTry.push(parent.code)
+    if (parent?.name) namesToTry.push(parent.name)
+    cur = pid
+  }
+
+  try {
+    const tree = await getKnowledgeTree()
+    const codeToId = {}
+    const nameToId = {}
+    function walk(nodes) {
+      if (!nodes) return
+      for (const n of nodes) {
+        if (n.code) codeToId[n.code] = n.id
+        if (n.name) nameToId[n.name] = n.id
+        if (n.children) walk(n.children)
+      }
+    }
+    walk(tree)
+
+    for (const code of codesToTry) {
+      const dbId = codeToId[code]
+      if (dbId) {
+        router.push({ name: 'KnowledgeDetail', params: { module: routeModule, id: dbId } })
         return
       }
-    } catch {
-      // 该 code 不存在，继续尝试下一个（父节点）
     }
+    for (const name of namesToTry) {
+      const dbId = nameToId[name]
+      if (dbId) {
+        router.push({ name: 'KnowledgeDetail', params: { module: routeModule, id: dbId } })
+        return
+      }
+    }
+  } catch (e) {
+    console.warn('获取知识点树失败:', e)
   }
-  // 全部失败时降级为模块页跳转
+
   router.push({
     name: 'KnowledgeModule',
     params: { module: routeModule },

@@ -149,3 +149,46 @@ CREATE TABLE IF NOT EXISTS `code_submission` (
     INDEX idx_exercise_id (`exercise_id`),
     INDEX idx_create_time (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='代码提交记录表';
+
+CREATE TABLE IF NOT EXISTS `exercise` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '题目ID',
+    `knowledge_point_id` BIGINT NOT NULL COMMENT '知识点ID',
+    `title` VARCHAR(500) NOT NULL COMMENT '题目',
+    `type` VARCHAR(20) NOT NULL COMMENT '题型：SINGLE_CHOICE, MULTIPLE_CHOICE, FILL_BLANK, PROGRAMMING',
+    `difficulty` VARCHAR(20) NOT NULL COMMENT '难度：EASY, MEDIUM, HARD',
+    `category` VARCHAR(50) NOT NULL COMMENT '类别：BASIC, INTERVIEW, EXAM',
+    `options` JSON DEFAULT NULL COMMENT '选择题选项',
+    `answer` TEXT NOT NULL COMMENT '答案',
+    `analysis` TEXT COMMENT '解析',
+    `time_limit` INT DEFAULT 60 COMMENT '时间限制(秒)',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` INT DEFAULT 0 COMMENT '逻辑删除标识',
+    `description` TEXT COMMENT '题目描述',
+    `initial_code` TEXT COMMENT '编程题初始代码',
+    `test_cases` TEXT COMMENT '测试用例(JSON格式)',
+    `pass_rate` DOUBLE DEFAULT 0 COMMENT '通过率',
+    `total_attempts` INT DEFAULT 0 COMMENT '总尝试次数',
+    `correct_attempts` INT DEFAULT 0 COMMENT '正确次数',
+    PRIMARY KEY (`id`),
+    INDEX idx_knowledge_point_id (`knowledge_point_id`),
+    INDEX idx_type (`type`),
+    INDEX idx_difficulty (`difficulty`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='练习题表';
+
+CREATE TABLE IF NOT EXISTS `user_exercise_record` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `exercise_id` BIGINT NOT NULL COMMENT '题目ID',
+    `user_answer` TEXT COMMENT '用户答案',
+    `is_correct` TINYINT COMMENT '是否正确：0-否，1-是',
+    `score` INT COMMENT '得分',
+    `submit_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除：0-否，1-是',
+    INDEX idx_user_id (`user_id`),
+    INDEX idx_exercise_id (`exercise_id`),
+    INDEX idx_submit_time (`submit_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户做题记录表';

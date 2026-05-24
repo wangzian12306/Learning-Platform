@@ -59,7 +59,10 @@
         </template>
         <div v-if="operationContents.length > 0" class="content-list">
           <div v-for="(item, i) in operationContents" :key="i" class="content-item">
-            <h4 v-if="item.title" class="content-item-title">{{ item.title }}</h4>
+            <h4 v-if="item.title" class="content-item-title">
+              {{ item.title }}
+              <el-tag v-if="item._fromChild" size="small" type="info" effect="plain" style="margin-left:6px;font-size:11px">子知识点</el-tag>
+            </h4>
             <div class="content-text" v-html="mdToHtml(item.content)"></div>
           </div>
         </div>
@@ -77,7 +80,10 @@
         <div v-if="codeExamples.length > 0" class="code-examples">
           <div v-for="(example, i) in codeExamples" :key="i" class="code-block">
             <div class="code-block-header">
-              <span class="code-title">{{ example.title }}</span>
+              <span class="code-title">
+                {{ example.title }}
+                <el-tag v-if="example._fromChild" size="small" type="info" effect="plain" style="margin-left:6px;font-size:11px">子知识点</el-tag>
+              </span>
               <el-button size="small" type="primary" link @click="loadToEditor(example)">
                 加载到编辑器
               </el-button>
@@ -176,7 +182,10 @@
         </template>
         <div v-if="complexityContents.length > 0" class="content-list">
           <div v-for="(item, i) in complexityContents" :key="i" class="content-item">
-            <h4 v-if="item.title" class="content-item-title">{{ item.title }}</h4>
+            <h4 v-if="item.title" class="content-item-title">
+              {{ item.title }}
+              <el-tag v-if="item._fromChild" size="small" type="info" effect="plain" style="margin-left:6px;font-size:11px">子知识点</el-tag>
+            </h4>
             <div class="content-text" v-html="mdToHtml(item.content)"></div>
           </div>
         </div>
@@ -213,6 +222,7 @@ import {
   getKnowledgeDetail,
   getKnowledgeContents,
   getCodeExamples,
+  getKnowledgeTree,
 } from '@/api/modules/knowledge.js'
 import { runCode, submitCode } from '@/api/modules/code.js'
 import { useKnowledgeStore } from '@/stores/knowledge.js'
@@ -366,6 +376,55 @@ function sectionIndex(section) {
 }
 
 // ================================================================
+//  聚合子知识点内容（模块级节点无自身内容时使用）
+// ================================================================
+async function aggregateChildContent(parentId) {
+  try {
+    const tree = await getKnowledgeTree()
+    let childIds = []
+    function findChildren(nodes) {
+      for (const n of nodes) {
+        if (n.id === parentId && n.children) {
+          childIds = n.children.map(c => c.id)
+          return
+        }
+        if (n.children) findChildren(n.children)
+      }
+    }
+    findChildren(tree)
+    if (childIds.length === 0) return
+
+    const allContents = []
+    const allCodes = []
+    const results = await Promise.allSettled(
+      childIds.map(cid => Promise.all([
+        getKnowledgeContents(cid),
+        getCodeExamples(cid),
+      ]))
+    )
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        const [childContents, childCodes] = r.value
+        if (childContents) {
+          for (const c of childContents) {
+            allContents.push({ ...c, _fromChild: true })
+          }
+        }
+        if (childCodes) {
+          for (const c of childCodes) {
+            allCodes.push({ ...c, _fromChild: true })
+          }
+        }
+      }
+    }
+    if (allContents.length > 0) contents.value = allContents
+    if (allCodes.length > 0) codes.value = allCodes
+  } catch (e) {
+    console.warn('聚合子知识点内容失败:', e)
+  }
+}
+
+// ================================================================
 //  数据获取
 // ================================================================
 async function fetchDetail() {
@@ -407,6 +466,10 @@ async function fetchDetail() {
   point.value = detail
   contents.value = contentsRes.status === 'fulfilled' ? (contentsRes.value || []) : []
   codes.value = codesRes.status === 'fulfilled' ? (codesRes.value || []) : []
+
+  if (contents.value.length === 0 && codes.value.length === 0) {
+    await aggregateChildContent(id)
+  }
 
   knowledgeStore.setCurrentNode({
     id: detail.id,

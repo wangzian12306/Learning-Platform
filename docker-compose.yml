@@ -1,23 +1,115 @@
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: learning-platform-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: learning_platform
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - ./data-layer/mysql/00_schema.sql:/docker-entrypoint-initdb.d/00_schema.sql:ro
+      - ./data-layer/mysql/50_data_dump.sql:/docker-entrypoint-initdb.d/50_data_dump.sql:ro
+      - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.19
+    container_name: learning-platform-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/neo4j123
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_memory_pagecache_size: 512M
+      NEO4J_dbms_memory_heap_max__size: 512M
+      NEO4J_dbms_security_procedures_unrestricted: 'apoc.*'
+      NEO4J_dbms_security_procedures_allowlist: 'apoc.*'
+    volumes:
+      - neo4j_data:/data
+      - ./data-layer/neo4j/import:/import
+      - ./data-layer/neo4j:/scripts
+      - ./docker/neo4j/entrypoint.sh:/entrypoint.sh
+    command: ["bash", "/entrypoint.sh"]
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   piston:
     image: ghcr.io/engineer-man/piston
     container_name: piston
     privileged: true
-    ports:
-      - "2000:2000"
     volumes:
       - piston_packages:/piston/packages
       - piston_jobs:/piston/jobs
+    networks:
+      - app-network
     restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 114.114.114.114
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: learning-platform-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
     environment:
-      - HTTP_PROXY=http://host.docker.internal:7890
-      - HTTPS_PROXY=http://host.docker.internal:7890
-      - http_proxy=http://host.docker.internal:7890
-      - https_proxy=http://host.docker.internal:7890
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: docker/ai/Dockerfile
+    container_name: learning-platform-ai
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - docker/ai/.env
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: learning-platform-frontend
+    depends_on:
+      - backend
+      - ai-service
+    ports:
+      - "80:80"
+    networks:
+      - app-network
+    restart: unless-stopped
 
 volumes:
+  mysql_data:
+  neo4j_data:
   piston_packages:
   piston_jobs:
+
+networks:
+  app-network:
+    driver: bridge

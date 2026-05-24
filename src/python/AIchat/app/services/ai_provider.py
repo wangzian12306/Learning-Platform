@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from openai import OpenAI
@@ -6,22 +7,38 @@ from app.config import get_settings
 from app.key_store import get_provider_key, load_api_keys
 from app.models import AIAbility
 
+logger = logging.getLogger(__name__)
+
 
 class AIProvider:
     def __init__(self):
         settings = get_settings()
         keys = load_api_keys(settings.api_key_file)
-        api_key = get_provider_key(keys, "qwen")
-        self.client = OpenAI(api_key=api_key, base_url=settings.qwen_base_url)
+        try:
+            api_key = get_provider_key(keys, "qwen")
+            self.client = OpenAI(api_key=api_key, base_url=settings.qwen_base_url)
+            self._available = True
+        except RuntimeError:
+            logger.warning("API Key 未配置，AI 对话功能不可用")
+            self.client = None
+            self._available = False
         self.default_model = settings.qwen_model
 
+    @property
+    def available(self) -> bool:
+        return self._available and self.client is not None
+
     def generate(self, ability: AIAbility, messages: list[dict], model: Optional[str] = None) -> str:
+        if not self.available:
+            raise RuntimeError("AI 服务不可用：API Key 未配置。请参考启动指南配置 API Key。")
         selected_model = (model or self.default_model).strip()
         if selected_model.startswith("deepseek-"):
             return self._generate_with_chat_completions(selected_model, messages)
         return self._generate_with_responses(selected_model, messages, ability)
 
     def generate_stream(self, messages: list[dict], model: Optional[str] = None):
+        if not self.available:
+            raise RuntimeError("AI 服务不可用：API Key 未配置。请参考启动指南配置 API Key。")
         selected_model = (model or self.default_model).strip()
         if selected_model.startswith("deepseek-"):
             yield from self._generate_with_chat_completions_stream(selected_model, messages)
