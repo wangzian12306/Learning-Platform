@@ -166,6 +166,7 @@ const activeCaseIndex = ref(0)
 const activeResultType = ref(null)
 const code = ref(DEFAULT_TEMPLATES['c++'])
 const exercise = ref(LOCAL_EXERCISE)
+const skipNextCodeSave = ref(false)
 
 function parseJsonField(value, fallback) {
   if (Array.isArray(value) || (value && typeof value === 'object')) {
@@ -192,6 +193,41 @@ function normalizeInitialCode(value) {
   return initialCode && typeof initialCode === 'object' ? initialCode : DEFAULT_TEMPLATES
 }
 
+function isSupportedLanguage(lang) {
+  return Object.prototype.hasOwnProperty.call(DEFAULT_TEMPLATES, lang)
+}
+
+function draftStorageKey(exerciseId = exercise.value.id) {
+  return `exercise-detail:drafts:v1:${exerciseId}`
+}
+
+function safeParseDrafts(exerciseId = exercise.value.id) {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(exerciseId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveDraft(lang, value, exerciseId = exercise.value.id) {
+  if (!isSupportedLanguage(lang) || !exerciseId) return
+  const drafts = safeParseDrafts(exerciseId)
+  drafts[lang] = value
+  localStorage.setItem(draftStorageKey(exerciseId), JSON.stringify(drafts))
+}
+
+function loadDraft(lang, exerciseId = exercise.value.id) {
+  if (!isSupportedLanguage(lang) || !exerciseId) return null
+  const draft = safeParseDrafts(exerciseId)[lang]
+  return typeof draft === 'string' ? draft : null
+}
+
+function loadInitialCode(lang) {
+  return exercise.value.initialCode?.[lang] || DEFAULT_TEMPLATES[lang] || ''
+}
+
 async function loadExercise() {
   const id = route.params.id
   if (!id) return
@@ -208,7 +244,8 @@ async function loadExercise() {
         initialCode: normalizeInitialCode(data.initialCode),
         testCases: normalizeTestCases(data.testCases),
       }
-      code.value = exercise.value.initialCode?.[selectedLanguage.value] || DEFAULT_TEMPLATES[selectedLanguage.value] || ''
+      skipNextCodeSave.value = true
+      code.value = loadDraft(selectedLanguage.value, data.id) ?? loadInitialCode(selectedLanguage.value)
       activeCaseIndex.value = 0
     }
   } catch (e) {
@@ -220,12 +257,22 @@ onMounted(() => {
   loadExercise()
 })
 
-watch(selectedLanguage, (lang) => {
-  code.value = exercise.value.initialCode?.[lang] || DEFAULT_TEMPLATES[lang] || ''
+watch(selectedLanguage, (lang, oldLang) => {
+  saveDraft(oldLang, code.value)
+  skipNextCodeSave.value = true
+  code.value = loadDraft(lang) ?? loadInitialCode(lang)
   runResult.value = null
   submitResult.value = null
   activeResultType.value = null
   resultTab.value = 'cases'
+})
+
+watch(code, (value) => {
+  if (skipNextCodeSave.value) {
+    skipNextCodeSave.value = false
+    return
+  }
+  saveDraft(selectedLanguage.value, value)
 })
 
 const monacoLanguage = computed(() =>
