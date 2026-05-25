@@ -51,7 +51,7 @@
             </span>
             <span class="time-limit">
               <el-icon><Timer /></el-icon>
-              限时: {{ ex.timeLimit || 60 }}秒
+              限时: {{ formatTimeLimit(ex.timeLimit, ex.type) }}
             </span>
             <span class="type">
               <el-icon><Document /></el-icon>
@@ -257,6 +257,31 @@ const getTypeText = (type) => {
     PROGRAMMING: '编程题'
   }
   return map[type] || type
+}
+
+const getDefaultTimeLimit = (type) => {
+  const map = {
+    SINGLE_CHOICE: 120,
+    MULTIPLE_CHOICE: 120,
+    FILL_BLANK: 180,
+    PROGRAMMING: 3600
+  }
+  return map[type] || 120
+}
+
+const formatTimeLimit = (timeLimit, type) => {
+  const seconds = timeLimit || getDefaultTimeLimit(type)
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+  }
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s > 0 ? `${m}分${s}秒` : `${m}分钟`
+  }
+  return `${seconds}秒`
 }
 
 // API调用

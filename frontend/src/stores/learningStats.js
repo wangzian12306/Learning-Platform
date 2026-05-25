@@ -31,6 +31,7 @@ function createEmptyState() {
   return {
     knowledgeVisits: {},
     dailyStudySeconds: {},
+    hourlyStudySeconds: {},
     exerciseRecords: {},
   }
 }
@@ -95,6 +96,16 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
       raw.value.dailyStudySeconds[day] = 0
     }
     raw.value.dailyStudySeconds[day] += seconds
+
+    const now = new Date()
+    const hourKey = `${day} ${String(now.getHours()).padStart(2, '0')}`
+    if (!raw.value.hourlyStudySeconds) {
+      raw.value.hourlyStudySeconds = {}
+    }
+    if (!raw.value.hourlyStudySeconds[hourKey]) {
+      raw.value.hourlyStudySeconds[hourKey] = 0
+    }
+    raw.value.hourlyStudySeconds[hourKey] += seconds
 
     if (raw.value.knowledgeVisits[key]) {
       raw.value.knowledgeVisits[key].totalSeconds += seconds
@@ -191,18 +202,47 @@ export const useLearningStatsStore = defineStore('learningStats', () => {
     }
   }
 
-  function getTrendData(days = 7) {
+  function getTrendData(period = 'week') {
     const result = []
     const now = new Date()
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now)
-      d.setDate(d.getDate() - i)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      result.push({
-        date: key.slice(5),
-        hours: ((raw.value.dailyStudySeconds[key] || 0) / 3600),
-      })
+
+    if (period === 'day') {
+      const hourly = raw.value.hourlyStudySeconds || {}
+      for (let i = 23; i >= 0; i--) {
+        const h = new Date(now)
+        h.setHours(h.getHours() - i)
+        const dayKey = `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`
+        const hourStr = String(h.getHours()).padStart(2, '0')
+        const hourKey = `${dayKey} ${hourStr}`
+        result.push({
+          date: `${hourStr}:00`,
+          hours: (hourly[hourKey] || 0) / 3600,
+        })
+      }
+    } else if (period === 'week') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now)
+        d.setDate(d.getDate() - i)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+        const label = i === 0 ? '今天' : i === 1 ? '昨天' : weekDays[d.getDay()]
+        result.push({
+          date: label,
+          hours: (raw.value.dailyStudySeconds[key] || 0) / 3600,
+        })
+      }
+    } else if (period === 'month') {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now)
+        d.setDate(d.getDate() - i)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        result.push({
+          date: `${d.getMonth() + 1}/${d.getDate()}`,
+          hours: (raw.value.dailyStudySeconds[key] || 0) / 3600,
+        })
+      }
     }
+
     return result
   }
 

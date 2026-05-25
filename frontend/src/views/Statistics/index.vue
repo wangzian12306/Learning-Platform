@@ -76,10 +76,11 @@
               <el-card shadow="always">
                 <template #header>
                   <span>📈 学习趋势</span>
-                  <el-select v-model="trendDays" size="small" style="float: right; width: 100px" @change="loadTrendData">
-                    <el-option label="近 7 天" :value="7" />
-                    <el-option label="近 30 天" :value="30" />
-                  </el-select>
+                  <el-radio-group v-model="trendPeriod" size="small" style="float: right" @change="loadTrendData">
+                    <el-radio-button label="day">一天</el-radio-button>
+                    <el-radio-button label="week">一周</el-radio-button>
+                    <el-radio-button label="month">一月</el-radio-button>
+                  </el-radio-group>
                 </template>
                 <div ref="trendChartRef" class="chart-container"></div>
               </el-card>
@@ -133,7 +134,7 @@ import { getExerciseList } from '@/api/modules/exercise.js'
 
 const store = useLearningStatsStore()
 
-const trendDays = ref(7)
+const trendPeriod = ref('week')
 const progressChartRef = ref(null)
 const masteryChartRef = ref(null)
 const trendChartRef = ref(null)
@@ -248,13 +249,35 @@ function initMasteryChart() {
 function initTrendChart() {
   if (!trendChartRef.value) return
   const chart = echarts.init(trendChartRef.value)
-  const chartData = store.getTrendData(trendDays.value)
+  const chartData = store.getTrendData(trendPeriod.value)
+
+  const isDay = trendPeriod.value === 'day'
+  const isMonth = trendPeriod.value === 'month'
 
   chart.setOption({
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        const p = params[0]
+        if (isDay) {
+          return `${p.name}<br/>学习时长: ${p.value > 0 ? p.value.toFixed(2) : 0} 小时`
+        }
+        return `${p.name}<br/>学习时长: ${p.value > 0 ? p.value.toFixed(2) : 0} 小时`
+      },
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: isMonth ? '12%' : '3%',
+      containLabel: true,
+    },
     xAxis: {
       type: 'category',
       data: chartData.map(item => item.date),
+      axisLabel: {
+        rotate: isMonth ? 45 : 0,
+        interval: isMonth ? 2 : 'auto',
+      },
     },
     yAxis: {
       type: 'value',

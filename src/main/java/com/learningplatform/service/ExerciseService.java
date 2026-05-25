@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -166,16 +167,18 @@ public class ExerciseService {
         boolean isCorrect = false;
         String correctAnswer = exercise.getAnswer();
         String analysis = exercise.getAnalysis();
+        List<SubmitResultResponse.BlankResult> blankResults = null;
 
-        // 根据题型判断答案
         switch (exercise.getType()) {
             case "SINGLE_CHOICE":
             case "MULTIPLE_CHOICE":
-            case "FILL_BLANK":
                 isCorrect = correctAnswer.equalsIgnoreCase(request.getUserAnswer());
                 break;
+            case "FILL_BLANK":
+                blankResults = checkFillBlankAnswers(correctAnswer, request.getUserAnswer(), exercise.getDescription(), exercise.getTitle());
+                isCorrect = blankResults != null && blankResults.stream().allMatch(SubmitResultResponse.BlankResult::isCorrect);
+                break;
             case "PROGRAMMING":
-                // 编程题需要运行测试用例
                 isCorrect = runTestCases(request.getCode(), exercise.getTestCases());
                 analysis = isCorrect ? "恭喜，所有测试用例都通过了！" : "部分测试用例未通过，请检查代码逻辑。";
                 break;
@@ -189,13 +192,13 @@ public class ExerciseService {
         // 记录用户答题记录
         saveUserExerciseRecord(userId, exercise.getId(), request.getUserAnswer(), isCorrect);
 
-        // 返回提交结果
         SubmitResultResponse response = new SubmitResultResponse();
         response.setCorrect(isCorrect);
         response.setCorrectAnswer(isCorrect ? null : correctAnswer);
         response.setAnalysis(analysis);
         response.setPassRate(exercise.getPassRate());
         response.setExerciseId(exercise.getId());
+        response.setBlankResults(blankResults);
 
         return response;
     }
@@ -329,5 +332,50 @@ public class ExerciseService {
         ExerciseDetailResponse response = new ExerciseDetailResponse();
         BeanUtils.copyProperties(exercise, response);
         return response;
+    }
+
+    private List<SubmitResultResponse.BlankResult> checkFillBlankAnswers(String correctAnswer, String userAnswer, String description, String title) {
+        if (!StringUtils.hasText(correctAnswer) || !StringUtils.hasText(userAnswer)) {
+            return null;
+        }
+
+        int blankCount = 0;
+        if (StringUtils.hasText(description)) {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("_{2,}").matcher(description);
+            while (matcher.find()) {
+                blankCount++;
+            }
+        }
+        if (blankCount == 0 && StringUtils.hasText(title)) {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("_{2,}").matcher(title);
+            while (matcher.find()) {
+                blankCount++;
+            }
+        }
+
+        String[] correctParts = parseAnswerParts(correctAnswer, blankCount);
+        String[] userParts = parseAnswerParts(userAnswer, blankCount);
+
+        int maxLen = Math.max(correctParts.length, userParts.length);
+        List<SubmitResultResponse.BlankResult> results = new ArrayList<>();
+
+        for (int i = 0; i < maxLen; i++) {
+            String correct = i < correctParts.length ? correctParts[i].trim() : "";
+            String user = i < userParts.length ? userParts[i].trim() : "";
+            boolean match = correct.equalsIgnoreCase(user);
+            results.add(new SubmitResultResponse.BlankResult(i + 1, match, user, correct));
+        }
+
+        return results;
+    }
+
+    private String[] parseAnswerParts(String answer, int blankCount) {
+        if (answer.contains("|")) {
+            return answer.split("\\|");
+        }
+        if (blankCount > 1 && answer.contains(",")) {
+            return answer.split(",");
+        }
+        return new String[]{answer};
     }
 }

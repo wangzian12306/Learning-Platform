@@ -34,6 +34,12 @@
           <el-option label="C" value="c" />
           <el-option label="Python" value="python" />
         </el-select>
+        <div v-if="timeLimit > 0" class="timer-display">
+          <el-icon><Timer /></el-icon>
+          <span :class="{ 'timer-warning': remainingTime > 0 && remainingTime <= 300, 'timer-danger': remainingTime > 0 && remainingTime <= 60 }">
+            {{ formatRemainingTime(remainingTime) }}
+          </span>
+        </div>
         <div style="flex:1" />
         <el-button size="small" @click="onRun" :loading="running">运行</el-button>
         <el-button size="small" type="primary" @click="onSubmit" :loading="submitting">提交</el-button>
@@ -126,8 +132,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { Timer } from '@element-plus/icons-vue'
 import CodeEditor from '@/components/CodeEditor/CodeEditor.vue'
 import { runCode, submitCode } from '@/api/modules/code'
 import { getExerciseDetail } from '@/api/modules/exercise.js'
@@ -228,6 +235,35 @@ function loadInitialCode(lang) {
   return exercise.value.initialCode?.[lang] || DEFAULT_TEMPLATES[lang] || ''
 }
 
+const remainingTime = ref(0)
+let timerInterval = null
+
+const timeLimit = computed(() => {
+  return exercise.value.timeLimit || 3600
+})
+
+const formatRemainingTime = (seconds) => {
+  if (seconds <= 0) return '00:00:00'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function startTimer() {
+  if (timerInterval) clearInterval(timerInterval)
+  remainingTime.value = timeLimit.value
+  timerInterval = setInterval(() => {
+    if (remainingTime.value > 0) {
+      remainingTime.value--
+    } else {
+      clearInterval(timerInterval)
+      timerInterval = null
+    }
+  }, 1000)
+}
+
 async function loadExercise() {
   const id = route.params.id
   if (!id) return
@@ -241,12 +277,10 @@ async function loadExercise() {
         difficulty: data.difficulty,
         description: data.description,
         knowledgePointId: data.knowledgePointId,
-        initialCode: normalizeInitialCode(data.initialCode),
-        testCases: normalizeTestCases(data.testCases),
+        testCases: data.testCases || LOCAL_EXERCISE.testCases,
+        timeLimit: data.timeLimit,
       }
-      skipNextCodeSave.value = true
-      code.value = loadDraft(selectedLanguage.value, data.id) ?? loadInitialCode(selectedLanguage.value)
-      activeCaseIndex.value = 0
+      startTimer()
     }
   } catch (e) {
     console.warn('加载习题详情失败，使用本地习题:', e)
@@ -255,6 +289,14 @@ async function loadExercise() {
 
 onMounted(() => {
   loadExercise()
+  startTimer()
+})
+
+onUnmounted(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
 })
 
 watch(selectedLanguage, (lang, oldLang) => {
@@ -421,6 +463,33 @@ async function onSubmit() {
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   flex-shrink: 0;
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #f0f9eb;
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-display .timer-warning {
+  color: #e6a23c;
+}
+
+.timer-display .timer-danger {
+  color: #f56c6c;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 .editor-area {

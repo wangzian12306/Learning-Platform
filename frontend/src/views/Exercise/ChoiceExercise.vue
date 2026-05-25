@@ -16,7 +16,7 @@
               <span class="exercise-id">ID: {{ id }}</span>
               <span v-if="timeLimit > 0" class="time-info">
                 <el-icon><Timer /></el-icon>
-                限时: {{ timeLimit }}秒
+                限时: {{ formatTimeLimit(timeLimit) }}
               </span>
             </div>
           </div>
@@ -25,9 +25,7 @@
 
       <!-- 计时器 -->
       <div v-if="timeLimit > 0" class="timer-container">
-        <el-statistic title="剩余时间" :value="remainingTime">
-          <template #suffix>秒</template>
-        </el-statistic>
+        <el-statistic title="剩余时间" :value="formatRemainingTime(remainingTime)" />
       </div>
     </div>
 
@@ -242,8 +240,29 @@ const hasAnswer = computed(() => {
 })
 
 const timeLimit = computed(() => {
-  return exercise.value.timeLimit || 300 // 默认5分钟
+  return exercise.value.timeLimit || 120
 })
+
+const formatTimeLimit = (seconds) => {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+  }
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s > 0 ? `${m}分${s}秒` : `${m}分钟`
+  }
+  return `${seconds}秒`
+}
+
+const formatRemainingTime = (seconds) => {
+  if (seconds <= 0) return '00:00'
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
 
 const exerciseOptions = computed(() => {
   if (exercise.value.options) {

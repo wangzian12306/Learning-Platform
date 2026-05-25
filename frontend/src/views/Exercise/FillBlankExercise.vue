@@ -14,7 +14,7 @@
               <span class="exercise-id">ID: {{ id }}</span>
               <span v-if="timeLimit > 0" class="time-info">
                 <el-icon><Timer /></el-icon>
-                限时: {{ timeLimit }}秒
+                限时: {{ formatTimeLimit(timeLimit) }}
               </span>
             </div>
           </div>
@@ -23,9 +23,7 @@
 
       <!-- 计时器 -->
       <div v-if="timeLimit > 0" class="timer-container">
-        <el-statistic title="剩余时间" :value="remainingTime">
-          <template #suffix>秒</template>
-        </el-statistic>
+        <el-statistic title="剩余时间" :value="formatRemainingTime(remainingTime)" />
       </div>
     </div>
 
@@ -33,41 +31,45 @@
     <el-card class="exercise-card" v-loading="loading">
       <!-- 题目描述 -->
       <div class="question-content">
-        <div class="question-text" v-html="formatQuestion(exercise.description)"></div>
-
-        <!-- 填空区域 -->
-        <div v-if="blanks.length > 0" class="blanks-section">
-          <div v-for="(blank, index) in blanks" :key="index" class="blank-item">
-            <div class="blank-header">
-              <span class="blank-label">{{ blank.label || `第 ${index + 1} 空` }}</span>
-              <el-tag
-                  v-if="blank.correct !== undefined"
-                  :type="blank.correct ? 'success' : 'danger'"
-                  size="small"
-                  class="result-tag"
-              >
-                {{ blank.correct ? '正确' : '错误' }}
-              </el-tag>
-            </div>
-            <el-input
-                v-model="blank.answer"
-                :placeholder="blank.placeholder || '请输入答案'"
-                clearable
-                class="blank-input"
+        <div class="question-text-inline">
+          <template v-for="(segment, idx) in questionSegments" :key="idx">
+            <span v-if="segment.type === 'text'" class="text-segment">{{ segment.text }}</span>
+            <span v-else class="inline-blank-wrapper">
+              <span class="blank-number">({{ segment.index }})</span>
+              <el-input
+                v-model="blanks[segment.index - 1].answer"
+                :placeholder="`第${segment.index}空`"
                 :disabled="isSubmitted"
-                @keyup.enter="handleSubmit"
+                class="inline-blank-input"
                 :maxlength="100"
-            />
-            <div v-if="blank.feedback" class="blank-feedback" :class="blank.feedback.type">
-              <el-icon v-if="blank.feedback.type === 'success'"><CircleCheck /></el-icon>
-              <el-icon v-if="blank.feedback.type === 'error'"><CircleClose /></el-icon>
-              {{ blank.feedback.message }}
-            </div>
+                size="default"
+                @keyup.enter="handleSubmit"
+              />
+              <el-tag
+                v-if="blanks[segment.index - 1].correct !== undefined"
+                :type="blanks[segment.index - 1].correct ? 'success' : 'danger'"
+                size="small"
+                class="inline-result-tag"
+              >
+                {{ blanks[segment.index - 1].correct ? '✓' : '✗' }}
+              </el-tag>
+            </span>
+          </template>
+        </div>
+
+        <div v-if="blanks.length > 0 && isSubmitted" class="blanks-feedback-section">
+          <div v-for="(blank, index) in blanks" :key="'fb-' + index" class="blank-feedback-item">
+            <span class="feedback-label">第 {{ index + 1 }} 空：</span>
+            <el-tag :type="blank.correct ? 'success' : 'danger'" size="small">
+              {{ blank.correct ? '正确' : '错误' }}
+            </el-tag>
+            <span v-if="!blank.correct" class="feedback-correct-answer">
+              正确答案：<strong>{{ blank.correctAnswer }}</strong>
+            </span>
           </div>
         </div>
 
-        <!-- 如果没有解析出空，提供一个通用输入框 -->
-        <div v-else class="general-answer">
+        <div v-if="blanks.length === 0" class="general-answer">
           <el-input
               v-model="generalAnswer"
               type="textarea"
@@ -79,6 +81,10 @@
               :maxlength="500"
               show-word-limit
           />
+          <div class="general-answer-hint">
+            <el-icon><InfoFilled /></el-icon>
+            <span>本题有多个空，请用 <strong>|</strong>（竖线）分隔各空答案，例如：答案1|答案2|答案3</span>
+          </div>
         </div>
       </div>
 
@@ -201,7 +207,8 @@ import {
   CircleClose,
   Check,
   Promotion,
-  View
+  View,
+  InfoFilled
 } from '@element-plus/icons-vue'
 import { useLearningStatsStore } from '@/stores/learningStats.js'
 
@@ -241,8 +248,29 @@ const hasAnswer = computed(() => {
 })
 
 const timeLimit = computed(() => {
-  return exercise.value.timeLimit || 300 // 默认5分钟
+  return exercise.value.timeLimit || 180
 })
+
+const formatTimeLimit = (seconds) => {
+  if (seconds >= 3600) {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+  }
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s > 0 ? `${m}分${s}秒` : `${m}分钟`
+  }
+  return `${seconds}秒`
+}
+
+const formatRemainingTime = (seconds) => {
+  if (seconds <= 0) return '00:00'
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
 
 const resultTitle = computed(() => {
   if (!result.value) return ''
@@ -276,7 +304,6 @@ const getDifficultyText = (difficulty) => {
 
 const formatQuestion = (text) => {
   if (!text) return ''
-  // 将下划线转换为填空标记
   return text.replace(/_{2,}/g, '<span class="blank-mark">______</span>')
 }
 
@@ -285,19 +312,59 @@ const formatAnalysis = (text) => {
   return text.replace(/\n/g, '<br>')
 }
 
-// 解析题目中的填空位置
-const parseBlanks = (description) => {
-  if (!description) return []
+const questionSourceText = computed(() => {
+  const desc = exercise.value.description || ''
+  const title = exercise.value.title || ''
+  const descBlankCount = (desc.match(/_{2,}/g) || []).length
+  const titleBlankCount = (title.match(/_{2,}/g) || []).length
+  if (descBlankCount > 0) return desc
+  if (titleBlankCount > 0) return title
+  return desc || title
+})
 
-  const blankMatches = description.match(/_{2,}/g) || []
+const questionSegments = computed(() => {
+  const text = questionSourceText.value
+  if (!text) return []
+  const parts = text.split(/_{2,}/)
+  const segments = []
+  parts.forEach((part, idx) => {
+    if (part) {
+      segments.push({ type: 'text', text: part })
+    }
+    if (idx < parts.length - 1) {
+      segments.push({ type: 'blank', index: idx + 1 })
+    }
+  })
+  return segments
+})
+
+const parseBlanks = (description, title) => {
+  const desc = description || ''
+  const titleText = title || ''
+  const descBlankCount = (desc.match(/_{2,}/g) || []).length
+  const titleBlankCount = (titleText.match(/_{2,}/g) || []).length
+  const sourceText = descBlankCount > 0 ? desc : (titleBlankCount > 0 ? titleText : desc)
+  const blankMatches = sourceText.match(/_{2,}/g) || []
   return blankMatches.map((_, index) => ({
     id: index + 1,
     label: `第 ${index + 1} 空`,
-    placeholder: '请在此处填写答案',
+    placeholder: `第${index + 1}空`,
     answer: '',
     correct: undefined,
+    correctAnswer: '',
     feedback: null
   }))
+}
+
+const parseCorrectAnswers = (answerStr, blankCount) => {
+  if (!answerStr) return []
+  if (answerStr.includes('|')) {
+    return answerStr.split('|')
+  }
+  if (blankCount > 1 && answerStr.includes(',')) {
+    return answerStr.split(',')
+  }
+  return [answerStr]
 }
 
 // API调用
@@ -309,9 +376,8 @@ const fetchExerciseDetail = async () => {
 
     console.log('填空题详情:', exercise.value)
 
-    // 解析填空题
-    if (exercise.value.description) {
-      blanks.value = parseBlanks(exercise.value.description)
+    if (exercise.value.description || exercise.value.title) {
+      blanks.value = parseBlanks(exercise.value.description, exercise.value.title)
     }
 
     // 初始化计时器
@@ -373,7 +439,7 @@ const handleSubmit = async () => {
 
     let isCorrect = response?.correct === true || response?.correct === 'true'
     if (blanks.value.length > 0 && exercise.value.answer) {
-      const correctAnswers = exercise.value.answer.split('|')
+      const correctAnswers = parseCorrectAnswers(exercise.value.answer, blanks.value.length)
       isCorrect = blanks.value.every((blank, index) =>
         correctAnswers[index] && blank.answer.trim() === correctAnswers[index].trim()
       )
@@ -386,10 +452,10 @@ const handleSubmit = async () => {
       answer
     )
 
-    // 如果是填空形式，检查每个空的结果
     if (blanks.value.length > 0 && exercise.value.answer) {
-      const correctAnswers = exercise.value.answer.split('|')
+      const correctAnswers = parseCorrectAnswers(exercise.value.answer, blanks.value.length)
       blanks.value.forEach((blank, index) => {
+        blank.correctAnswer = correctAnswers[index] || ''
         blank.correct = correctAnswers[index] && blank.answer.trim() === correctAnswers[index].trim()
         blank.feedback = {
           type: blank.correct ? 'success' : 'error',
@@ -437,8 +503,15 @@ const showHint = () => {
 // 查看答案
 const showAnswer = () => {
   if (exercise.value.answer) {
+    const correctAnswers = parseCorrectAnswers(exercise.value.answer, blanks.value.length)
+    let displayAnswer
+    if (correctAnswers.length > 1) {
+      displayAnswer = correctAnswers.map((a, i) => `第${i + 1}空: ${a}`).join('\n')
+    } else {
+      displayAnswer = exercise.value.answer
+    }
     ElMessageBox.alert(
-        `正确答案: ${exercise.value.answer}`,
+        `正确答案:\n${displayAnswer}`,
         '查看答案',
         {
           confirmButtonText: '确定',
@@ -553,95 +626,112 @@ onUnmounted(() => {
 .question-content {
   padding: 20px 0;
 }
-.question-text {
+.question-text-inline {
   font-size: 16px;
-  line-height: 1.8;
+  line-height: 2.4;
   margin-bottom: 30px;
   color: #1f2329;
   white-space: pre-wrap;
 }
-.question-text :deep(.blank-mark) {
-  display: inline-block;
-  min-width: 100px;
-  height: 40px;
-  border-bottom: 2px solid #409eff;
-  margin: 0 8px;
+.text-segment {
   vertical-align: middle;
-  background: linear-gradient(to right, #ecf5ff, #f0f9ff);
-  border-radius: 4px;
-  text-align: center;
-  line-height: 40px;
-  font-weight: 500;
-  color: #409eff;
 }
-
-.blanks-section {
-  margin: 30px 0;
-  padding: 20px;
+.inline-blank-wrapper {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 4px;
+  gap: 4px;
+}
+.blank-number {
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 600;
+  background: #ecf5ff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.inline-blank-input {
+  width: 160px;
+  vertical-align: middle;
+}
+.inline-blank-input :deep(.el-input__inner) {
+  height: 36px;
+  font-size: 14px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 2px solid #d9ecff;
+  background: #f0f9ff;
+  transition: all 0.3s;
+}
+.inline-blank-input :deep(.el-input__inner:focus) {
+  border-color: #409eff;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+.inline-blank-input :deep(.el-input__inner:disabled) {
+  background: #f5f7fa;
+  border-color: #e4e7ed;
+}
+.inline-result-tag {
+  flex-shrink: 0;
+}
+.blanks-feedback-section {
+  margin-top: 20px;
+  padding: 16px 20px;
   background: #fafafa;
   border-radius: 8px;
   border: 1px solid #e4e7ed;
 }
-.blank-item {
-  margin-bottom: 25px;
-  padding: 20px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
-  transition: all 0.3s;
-}
-.blank-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
-}
-.blank-item:last-child {
-  margin-bottom: 0;
-}
-.blank-header {
+.blank-feedback-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ebeef5;
 }
-.blank-label {
+.blank-feedback-item:last-child {
+  border-bottom: none;
+}
+.feedback-label {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: #1f2329;
+  min-width: 60px;
 }
-.result-tag {
-  font-weight: 500;
-}
-.blank-input {
-  width: 100%;
-}
-.blank-input :deep(.el-input__inner) {
-  height: 46px;
-  font-size: 15px;
-  padding: 0 15px;
-  border-radius: 6px;
-}
-.blank-feedback {
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-radius: 4px;
+.feedback-correct-answer {
   font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.blank-feedback.success {
-  background-color: #f0f9ff;
-  color: #409eff;
-  border-left: 3px solid #409eff;
-}
-.blank-feedback.error {
-  background-color: #fef0f0;
   color: #f56c6c;
-  border-left: 3px solid #f56c6c;
+  margin-left: 8px;
 }
 
 .general-answer {
   margin-top: 20px;
+}
+.general-answer-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #e6a23c;
+  line-height: 1.6;
+}
+.general-answer-hint .el-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.general-answer-hint strong {
+  color: #d48806;
 }
 .general-answer :deep(.el-textarea__inner) {
   font-size: 15px;
