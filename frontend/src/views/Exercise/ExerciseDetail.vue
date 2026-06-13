@@ -12,7 +12,7 @@
             </el-tag>
             <p style="white-space:pre-wrap">{{ exercise.description }}</p>
 
-            <template v-if="exercise.testCases">
+            <template v-if="exercise.testCases.length">
               <div v-for="(tc, i) in exercise.testCases.slice(0, 2)" :key="i" class="example-block">
                 <p><strong>示例 {{ i + 1 }}：</strong></p>
                 <pre class="example-pre">输入：{{ tc.input }}
@@ -54,7 +54,7 @@
       <div class="result-area">
         <el-tabs v-model="resultTab">
           <el-tab-pane label="测试用例" name="cases">
-            <div v-if="exercise.testCases" class="cases-list">
+            <div v-if="exercise.testCases.length" class="cases-list">
               <el-button
                 v-for="(_, i) in exercise.testCases.slice(0, 3)"
                 :key="i"
@@ -173,6 +173,67 @@ const activeCaseIndex = ref(0)
 const activeResultType = ref(null)
 const code = ref(DEFAULT_TEMPLATES['c++'])
 const exercise = ref(LOCAL_EXERCISE)
+const skipNextCodeSave = ref(false)
+
+function parseJsonField(value, fallback) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) {
+    return value
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return fallback
+  }
+  try {
+    return JSON.parse(value)
+  } catch (e) {
+    console.warn('解析习题 JSON 字段失败:', e)
+    return fallback
+  }
+}
+
+function normalizeTestCases(value) {
+  const testCases = parseJsonField(value, [])
+  return Array.isArray(testCases) ? testCases : []
+}
+
+function normalizeInitialCode(value) {
+  const initialCode = parseJsonField(value, DEFAULT_TEMPLATES)
+  return initialCode && typeof initialCode === 'object' ? initialCode : DEFAULT_TEMPLATES
+}
+
+function isSupportedLanguage(lang) {
+  return Object.prototype.hasOwnProperty.call(DEFAULT_TEMPLATES, lang)
+}
+
+function draftStorageKey(exerciseId = exercise.value.id) {
+  return `exercise-detail:drafts:v1:${exerciseId}`
+}
+
+function safeParseDrafts(exerciseId = exercise.value.id) {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(exerciseId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveDraft(lang, value, exerciseId = exercise.value.id) {
+  if (!isSupportedLanguage(lang) || !exerciseId) return
+  const drafts = safeParseDrafts(exerciseId)
+  drafts[lang] = value
+  localStorage.setItem(draftStorageKey(exerciseId), JSON.stringify(drafts))
+}
+
+function loadDraft(lang, exerciseId = exercise.value.id) {
+  if (!isSupportedLanguage(lang) || !exerciseId) return null
+  const draft = safeParseDrafts(exerciseId)[lang]
+  return typeof draft === 'string' ? draft : null
+}
+
+function loadInitialCode(lang) {
+  return exercise.value.initialCode?.[lang] || DEFAULT_TEMPLATES[lang] || ''
+}
 
 const remainingTime = ref(0)
 let timerInterval = null
@@ -238,12 +299,22 @@ onUnmounted(() => {
   }
 })
 
-watch(selectedLanguage, (lang) => {
-  code.value = exercise.value.initialCode?.[lang] || DEFAULT_TEMPLATES[lang] || ''
+watch(selectedLanguage, (lang, oldLang) => {
+  saveDraft(oldLang, code.value)
+  skipNextCodeSave.value = true
+  code.value = loadDraft(lang) ?? loadInitialCode(lang)
   runResult.value = null
   submitResult.value = null
   activeResultType.value = null
   resultTab.value = 'cases'
+})
+
+watch(code, (value) => {
+  if (skipNextCodeSave.value) {
+    skipNextCodeSave.value = false
+    return
+  }
+  saveDraft(selectedLanguage.value, value)
 })
 
 const monacoLanguage = computed(() =>
