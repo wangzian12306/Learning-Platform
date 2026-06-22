@@ -1,5 +1,12 @@
 package com.learningplatform.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.learningplatform.entity.Exercise;
+import com.learningplatform.entity.KnowledgePoint;
+import com.learningplatform.entity.Video;
+import com.learningplatform.repository.ExerciseRepository;
+import com.learningplatform.repository.KnowledgePointRepository;
+import com.learningplatform.repository.VideoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
@@ -11,6 +18,15 @@ public class GraphService {
 
     @Autowired
     private Neo4jClient neo4jClient;
+
+    @Autowired
+    private KnowledgePointRepository knowledgePointRepository;
+
+    @Autowired
+    private VideoRepository videoRepository;
+
+    @Autowired
+    private ExerciseRepository exerciseRepository;
 
     /**
      * 获取完整图谱数据：所有节点和关系
@@ -127,6 +143,14 @@ public class GraphService {
                 .all());
 
         node.put("relatedNodes", related);
+        KnowledgePoint mysqlKnowledgePoint = findKnowledgePointByNeo4jId(nodeId);
+        if (mysqlKnowledgePoint != null) {
+            node.put("relatedVideos", getRelatedVideos(mysqlKnowledgePoint.getId()));
+            node.put("relatedExercises", getRelatedExercises(mysqlKnowledgePoint.getId()));
+        } else {
+            node.put("relatedVideos", List.of());
+            node.put("relatedExercises", List.of());
+        }
         return node;
     }
 
@@ -166,6 +190,78 @@ public class GraphService {
     private static Integer getInt(org.neo4j.driver.Record record, String key) {
         var val = record.get(key);
         return val == null || val.isNull() ? null : val.asInt();
+    }
+
+    private KnowledgePoint findKnowledgePointByNeo4jId(String neo4jId) {
+        KnowledgePoint point = knowledgePointRepository.selectOne(new QueryWrapper<KnowledgePoint>()
+                .eq("neo4j_id", neo4jId)
+                .last("LIMIT 1"));
+        if (point != null) {
+            return point;
+        }
+
+        List<String> codes = getCodesByNeo4jId(neo4jId);
+        if (codes.isEmpty()) {
+            return null;
+        }
+        return knowledgePointRepository.selectOne(new QueryWrapper<KnowledgePoint>()
+                .in("code", codes)
+                .last("LIMIT 1"));
+    }
+
+    private List<Map<String, Object>> getRelatedVideos(Long knowledgePointId) {
+        return videoRepository.selectList(new QueryWrapper<Video>()
+                        .eq("knowledge_point_id", knowledgePointId)
+                        .orderByAsc("sort_order")
+                        .orderByAsc("id")
+                        .last("LIMIT 5"))
+                .stream()
+                .map(video -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", video.getId());
+                    item.put("title", video.getTitle());
+                    item.put("description", video.getDescription());
+                    return item;
+                })
+                .toList();
+    }
+
+    private List<Map<String, Object>> getRelatedExercises(Long knowledgePointId) {
+        return exerciseRepository.selectList(new QueryWrapper<Exercise>()
+                        .eq("knowledge_point_id", knowledgePointId)
+                        .orderByAsc("sort_order")
+                        .orderByAsc("id")
+                        .last("LIMIT 5"))
+                .stream()
+                .map(exercise -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", exercise.getId());
+                    item.put("title", exercise.getTitle());
+                    item.put("type", exercise.getType());
+                    item.put("difficulty", exercise.getDifficulty());
+                    return item;
+                })
+                .toList();
+    }
+
+    private List<String> getCodesByNeo4jId(String neo4jId) {
+        Map<String, List<String>> reverseMap = Map.ofEntries(
+                Map.entry("KP_LL_001", List.of("LINEAR_LIST", "LINKED_LIST")),
+                Map.entry("KP_LL_002", List.of("STACK")),
+                Map.entry("KP_LL_004", List.of("QUEUE")),
+                Map.entry("KP_TREE_001", List.of("TREE")),
+                Map.entry("KP_TREE_002", List.of("BINARY_TREE")),
+                Map.entry("KP_TREE_007", List.of("B_TREE")),
+                Map.entry("KP_GRAPH_001", List.of("GRAPH")),
+                Map.entry("KP_GRAPH_002", List.of("GRAPH_REPRESENTATION", "GRAPH_STORAGE")),
+                Map.entry("KP_SEARCH_001", List.of("SEARCH")),
+                Map.entry("KP_SEARCH_002", List.of("SEQUENTIAL_SEARCH")),
+                Map.entry("KP_SEARCH_003", List.of("BINARY_SEARCH")),
+                Map.entry("KP_SEARCH_004", List.of("HASH_TABLE")),
+                Map.entry("KP_SORT_001", List.of("SORT", "SORTING")),
+                Map.entry("KP_SORT_003", List.of("SELECTION_SORT"))
+        );
+        return reverseMap.getOrDefault(neo4jId, List.of());
     }
 
     @SuppressWarnings("unchecked")

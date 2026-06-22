@@ -14,6 +14,11 @@ export function getVideoDetail(id) {
   return http.get(`/video/${id}`)
 }
 
+/** 根据知识图谱关联关系推荐相关视频。 */
+export function getRecommendedVideos(id) {
+  return http.get(`/video/${id}/recommendations`)
+}
+
 /** 查询当前用户在某个视频上的观看记录。 */
 export function getWatchRecord(videoId) {
   return http.get(`/video/watch-record/${videoId}`, {

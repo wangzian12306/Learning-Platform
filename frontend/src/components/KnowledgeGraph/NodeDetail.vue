@@ -59,6 +59,36 @@
           </div>
         </div>
       </div>
+
+      <div class="section" v-if="node.relatedVideos?.length">
+        <div class="section-title">相关视频</div>
+        <div class="section-content">
+          <div
+            v-for="video in node.relatedVideos"
+            :key="video.id"
+            class="related-item"
+            @click="openVideo(video.id)"
+          >
+            <span class="related-name">{{ video.title }}</span>
+            <span class="related-type">视频</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" v-if="node.relatedExercises?.length">
+        <div class="section-title">配套习题</div>
+        <div class="section-content">
+          <div
+            v-for="exercise in node.relatedExercises"
+            :key="exercise.id"
+            class="related-item"
+            @click="openExercise(exercise)"
+          >
+            <span class="related-name">{{ exercise.title }}</span>
+            <span class="related-type">{{ exerciseTypeLabel(exercise.type) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -176,6 +206,33 @@ const corePointList = computed(() => {
   if (!props.node?.corePoints) return []
   return props.node.corePoints.split(/[、，,]/).map((s) => s.trim()).filter(Boolean)
 })
+
+const openVideo = (id) => {
+  router.push({ name: 'VideoPlayer', query: { videoId: id } })
+}
+
+const openExercise = (exercise) => {
+  if (!exercise?.id) return
+  if (['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(exercise.type)) {
+    router.push({ path: `/exercise/choice/${exercise.id}` })
+    return
+  }
+  if (exercise.type === 'FILL_BLANK') {
+    router.push({ path: `/exercise/fill/${exercise.id}` })
+    return
+  }
+  router.push({ path: `/exercise/${exercise.id}` })
+}
+
+const exerciseTypeLabel = (type) => {
+  const map = {
+    SINGLE_CHOICE: '单选',
+    MULTIPLE_CHOICE: '多选',
+    FILL_BLANK: '填空',
+    PROGRAMMING: '编程',
+  }
+  return map[type] || '习题'
+}
 </script>
 
 <style scoped>

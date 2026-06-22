@@ -14,12 +14,16 @@ import com.learningplatform.repository.VideoWatchRecordRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +41,9 @@ public class VideoService {
 
     @Autowired
     private VideoWatchRecordRepository videoWatchRecordRepository;
+
+    @Autowired
+    private Neo4jClient neo4jClient;
 
     public List<VideoResponse> getVideoList(Long knowledgeId) {
         QueryWrapper<Video> queryWrapper = new QueryWrapper<>();
@@ -56,6 +63,46 @@ public class VideoService {
             throw new BusinessException(1701, "video does not exist");
         }
         return convertToVideoResponse(video);
+    }
+
+    public List<VideoResponse> getRecommendedVideos(Long videoId) {
+        Video currentVideo = videoRepository.selectById(videoId);
+        if (currentVideo == null) {
+            throw new BusinessException(1701, "video does not exist");
+        }
+
+        KnowledgePoint currentPoint = knowledgePointRepository.selectById(currentVideo.getKnowledgePointId());
+        if (currentPoint == null) {
+            return List.of();
+        }
+
+        String currentNeo4jId = resolveNeo4jId(currentPoint);
+        Set<Long> knowledgeIds = new LinkedHashSet<>();
+        knowledgeIds.add(currentPoint.getId());
+
+        if (currentNeo4jId != null) {
+            List<String> relatedNeo4jIds = getRelatedNeo4jIds(currentNeo4jId);
+            for (String relatedNeo4jId : relatedNeo4jIds) {
+                KnowledgePoint relatedPoint = findKnowledgePointByNeo4jId(relatedNeo4jId);
+                if (relatedPoint != null) {
+                    knowledgeIds.add(relatedPoint.getId());
+                }
+            }
+        }
+
+        if (knowledgeIds.isEmpty()) {
+            return List.of();
+        }
+
+        return videoRepository.selectList(new QueryWrapper<Video>()
+                        .in("knowledge_point_id", knowledgeIds)
+                        .ne("id", videoId)
+                        .orderByAsc("sort_order")
+                        .orderByAsc("id")
+                        .last("LIMIT 6"))
+                .stream()
+                .map(this::convertToVideoResponse)
+                .collect(Collectors.toList());
     }
 
     public VideoWatchRecordResponse getWatchRecord(Long userId, Long videoId) {
@@ -127,9 +174,62 @@ public class VideoService {
         if (knowledgePoint != null) {
             response.setKnowledgePointName(knowledgePoint.getName());
             response.setKnowledgePointCode(knowledgePoint.getCode());
+            response.setKnowledgePointDifficulty(knowledgePoint.getDifficulty());
             response.setNeo4jId(resolveNeo4jId(knowledgePoint));
         }
         return response;
+    }
+
+    private List<String> getRelatedNeo4jIds(String neo4jId) {
+        return neo4jClient.query(
+                        "MATCH (n:KnowledgePoint {neo4j_id: $id})-[r]-(m:KnowledgePoint) " +
+                                "RETURN m.neo4j_id AS id, coalesce(r.order, 999) AS sortOrder " +
+                                "ORDER BY sortOrder, m.level")
+                .bind(neo4jId).to("id")
+                .fetchAs(String.class)
+                .mappedBy((typeSystem, record) -> record.get("id").isNull() ? null : record.get("id").asString())
+                .all()
+                .stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toList());
+    }
+
+    private KnowledgePoint findKnowledgePointByNeo4jId(String neo4jId) {
+        QueryWrapper<KnowledgePoint> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("neo4j_id", neo4jId);
+        queryWrapper.last("LIMIT 1");
+        KnowledgePoint point = knowledgePointRepository.selectOne(queryWrapper);
+        if (point != null) {
+            return point;
+        }
+
+        List<String> codes = getCodesByNeo4jId(neo4jId);
+        if (codes.isEmpty()) {
+            return null;
+        }
+        return knowledgePointRepository.selectOne(new QueryWrapper<KnowledgePoint>()
+                .in("code", codes)
+                .last("LIMIT 1"));
+    }
+
+    private List<String> getCodesByNeo4jId(String neo4jId) {
+        Map<String, List<String>> reverseMap = Map.ofEntries(
+                Map.entry("KP_LL_001", List.of("LINEAR_LIST", "LINKED_LIST")),
+                Map.entry("KP_LL_002", List.of("STACK")),
+                Map.entry("KP_LL_004", List.of("QUEUE")),
+                Map.entry("KP_TREE_001", List.of("TREE")),
+                Map.entry("KP_TREE_002", List.of("BINARY_TREE")),
+                Map.entry("KP_TREE_007", List.of("B_TREE")),
+                Map.entry("KP_GRAPH_001", List.of("GRAPH")),
+                Map.entry("KP_GRAPH_002", List.of("GRAPH_REPRESENTATION", "GRAPH_STORAGE")),
+                Map.entry("KP_SEARCH_001", List.of("SEARCH")),
+                Map.entry("KP_SEARCH_002", List.of("SEQUENTIAL_SEARCH")),
+                Map.entry("KP_SEARCH_003", List.of("BINARY_SEARCH")),
+                Map.entry("KP_SEARCH_004", List.of("HASH_TABLE")),
+                Map.entry("KP_SORT_001", List.of("SORT", "SORTING")),
+                Map.entry("KP_SORT_003", List.of("SELECTION_SORT"))
+        );
+        return new ArrayList<>(reverseMap.getOrDefault(neo4jId, List.of()));
     }
 
     private String resolveNeo4jId(KnowledgePoint knowledgePoint) {

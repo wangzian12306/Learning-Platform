@@ -32,6 +32,11 @@ public class VideoController {
         return Result.success(videoService.getVideoDetail(id));
     }
 
+    @GetMapping("/{id}/recommendations")
+    public Result<List<VideoResponse>> getRecommendedVideos(@PathVariable Long id) {
+        return Result.success(videoService.getRecommendedVideos(id));
+    }
+
     @PostMapping("/watch-record")
     public Result<VideoWatchRecordResponse> saveWatchRecord(@Valid @RequestBody VideoWatchRecordRequest request,
                                                             @RequestHeader(value = "X-User-Id", required = false) Long userId) {

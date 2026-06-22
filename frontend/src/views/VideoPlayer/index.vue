@@ -45,7 +45,16 @@
         >
           <span class="video-title">{{ item.title }}</span>
           <span class="video-meta">
-            知识点 {{ item.knowledgePointId }}
+            {{ item.knowledgePointName || '未命名知识点' }}
+            <el-tag
+              v-if="item.knowledgePointDifficulty"
+              class="meta-tag"
+              :type="difficultyType(item.knowledgePointDifficulty)"
+              size="small"
+              effect="plain"
+            >
+              {{ difficultyLabel(item.knowledgePointDifficulty) }}
+            </el-tag>
             <template v-if="item.duration"> · {{ formatDuration(item.duration) }}</template>
           </span>
         </button>
@@ -128,6 +137,44 @@
               {{ watchState.isCompleted ? '已标记完成' : '标记为已完成' }}
             </el-button>
           </div>
+
+          <section class="resource-section" v-if="recommendedVideos.length">
+            <div class="resource-header">
+              <h3>图谱推荐视频</h3>
+              <span>来自当前知识点及相邻图谱节点</span>
+            </div>
+            <div class="resource-list">
+              <button
+                v-for="item in recommendedVideos"
+                :key="item.id"
+                class="resource-item"
+                type="button"
+                @click="selectVideo(item)"
+              >
+                <span>{{ item.title }}</span>
+                <small>{{ item.knowledgePointName || '相关知识点' }}</small>
+              </button>
+            </div>
+          </section>
+
+          <section class="resource-section" v-if="relatedExercises.length">
+            <div class="resource-header">
+              <h3>配套习题</h3>
+              <span>看完视频后可直接练习</span>
+            </div>
+            <div class="resource-list">
+              <button
+                v-for="item in relatedExercises"
+                :key="item.id"
+                class="resource-item"
+                type="button"
+                @click="openExercise(item)"
+              >
+                <span>{{ item.title }}</span>
+                <small>{{ exerciseTypeLabel(item.type) }} · {{ difficultyLabel(item.difficulty) }}</small>
+              </button>
+            </div>
+          </section>
         </template>
 
         <el-empty v-else description="请选择一个视频开始学习" />
@@ -137,21 +184,25 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
-import { getVideoList, getWatchRecord, saveWatchProgress } from '@/api/modules/video.js'
+import { getRecommendedVideos, getVideoList, getWatchRecord, saveWatchProgress } from '@/api/modules/video.js'
+import { getExercisesByKnowledge } from '@/api/modules/exercise.js'
 
 const loading = ref(false)
 const videos = ref([])
 const selectedVideo = ref(null)
+const recommendedVideos = ref([])
+const relatedExercises = ref([])
 const videoRef = ref(null)
 const pendingResumeSeconds = ref(null)
 const lastReportAt = ref(0)
 const embeddedTimer = ref(null)
 const embeddedLastReportAt = ref(0)
 const router = useRouter()
+const route = useRoute()
 
 const filter = reactive({
   knowledgeId: undefined,
@@ -177,7 +228,13 @@ const fetchVideoList = async () => {
       resetWatchState()
       return
     }
-    if (!selectedVideo.value || !videos.value.some((item) => item.id === selectedVideo.value.id)) {
+    const routeVideoId = Number(route.query.videoId)
+    const routeVideo = Number.isFinite(routeVideoId)
+      ? videos.value.find((item) => item.id === routeVideoId)
+      : null
+    if (routeVideo) {
+      await selectVideo(routeVideo)
+    } else if (!selectedVideo.value || !videos.value.some((item) => item.id === selectedVideo.value.id)) {
       await selectVideo(videos.value[0])
     }
   } catch (error) {
@@ -194,6 +251,8 @@ const selectVideo = async (video) => {
   stopEmbeddedTracking()
   selectedVideo.value = video
   resetWatchState()
+  recommendedVideos.value = []
+  relatedExercises.value = []
   pendingResumeSeconds.value = null
 
   try {
@@ -212,6 +271,8 @@ const selectVideo = async (video) => {
       startEmbeddedTracking()
     }
   }
+
+  fetchRelatedResources(video)
 }
 
 const resetFilter = () => {
@@ -225,6 +286,32 @@ const openGraphNode = () => {
     name: 'Graph',
     query: { node: selectedVideo.value.neo4jId },
   })
+}
+
+const fetchRelatedResources = async (video) => {
+  try {
+    const [videos, exercises] = await Promise.all([
+      getRecommendedVideos(video.id),
+      video.knowledgePointId ? getExercisesByKnowledge(video.knowledgePointId) : Promise.resolve([]),
+    ])
+    recommendedVideos.value = Array.isArray(videos) ? videos : []
+    relatedExercises.value = Array.isArray(exercises) ? exercises.slice(0, 6) : []
+  } catch (error) {
+    console.error('Failed to load related resources', error)
+  }
+}
+
+const openExercise = (exercise) => {
+  if (!exercise?.id) return
+  if (['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(exercise.type)) {
+    router.push({ path: `/exercise/choice/${exercise.id}` })
+    return
+  }
+  if (exercise.type === 'FILL_BLANK') {
+    router.push({ path: `/exercise/fill/${exercise.id}` })
+    return
+  }
+  router.push({ path: `/exercise/${exercise.id}` })
 }
 
 const resetWatchState = () => {
@@ -361,6 +448,26 @@ const formatTime = (time) => {
   return new Date(time).toLocaleString()
 }
 
+const difficultyLabel = (difficulty) => {
+  const map = { EASY: '简单', MEDIUM: '中等', HARD: '困难' }
+  return map[difficulty] || difficulty || '未知'
+}
+
+const difficultyType = (difficulty) => {
+  const map = { EASY: 'success', MEDIUM: 'warning', HARD: 'danger' }
+  return map[difficulty] || 'info'
+}
+
+const exerciseTypeLabel = (type) => {
+  const map = {
+    SINGLE_CHOICE: '单选题',
+    MULTIPLE_CHOICE: '多选题',
+    FILL_BLANK: '填空题',
+    PROGRAMMING: '编程题',
+  }
+  return map[type] || type || '习题'
+}
+
 const isDirectVideoUrl = (url) => {
   if (!url) return false
   return /\.(mp4|webm|ogg)(\.download)?(\?.*)?$/i.test(url)
@@ -382,6 +489,17 @@ const buildEmbedUrl = (url) => {
 }
 
 onMounted(fetchVideoList)
+watch(
+  () => route.query.videoId,
+  async (videoId) => {
+    const targetId = Number(videoId)
+    if (!Number.isFinite(targetId) || videos.value.length === 0) return
+    const target = videos.value.find((item) => item.id === targetId)
+    if (target && selectedVideo.value?.id !== target.id) {
+      await selectVideo(target)
+    }
+  },
+)
 onBeforeUnmount(() => {
   flushProgress()
   if (!isNativeVideo.value && selectedVideo.value) {
@@ -487,8 +605,16 @@ onBeforeUnmount(() => {
 }
 
 .video-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   color: #667085;
   font-size: 13px;
+}
+
+.meta-tag {
+  height: 20px;
 }
 
 .player-panel {
@@ -566,6 +692,67 @@ onBeforeUnmount(() => {
 
 .complete-button {
   margin-top: 12px;
+}
+
+.resource-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f5;
+}
+
+.resource-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.resource-header h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 16px;
+}
+
+.resource-header span {
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.resource-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.resource-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 66px;
+  padding: 10px 12px;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.resource-item:hover {
+  border-color: #409eff;
+  background: #f7fbff;
+}
+
+.resource-item span {
+  color: #101828;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.resource-item small {
+  color: #667085;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

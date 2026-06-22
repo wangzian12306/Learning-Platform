@@ -10,6 +10,7 @@ public class VideoResponse {
     private Long knowledgePointId;
     private String knowledgePointName;
     private String knowledgePointCode;
+    private String knowledgePointDifficulty;
     private String neo4jId;
     private String title;
     private String description;
